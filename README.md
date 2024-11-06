@@ -46,9 +46,9 @@ Automatically track changes in your code base and upload to FileZilla FTP Server
     ./sync_to_ftp.sh #strictly for your first run!
     ```
 
-When you are done setting up, run in background using the & at the end of the command
+- **Running after setup**: When you are done setting up the service will start running. But assuming you stop the service and start gain use the following command:
     ```bash
-    ./sync_to_ftp.sh & #subsequent runs can be in background
+    ./sync_to_ftp.sh & #subsequent runs can be in background with the added &
     ```
 
 - **Windows**: Run the `sync_script.ps1` PowerShell script. Directory Monitor can be configured to trigger `sync_script.ps1` on changes if desired.
