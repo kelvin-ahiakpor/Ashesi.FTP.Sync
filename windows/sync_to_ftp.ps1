@@ -1,5 +1,12 @@
-# Path to the configuration file
-$configFile = "$HOME\sync_config.conf"
+# Path to the configuration file within Development\scripts
+$configDir = "$HOME\Development\scripts"
+$configFile = "$configDir\sync_config.conf"
+
+# Ensure the directory exists
+if (!(Test-Path -Path $configDir)) {
+    New-Item -ItemType Directory -Path $configDir -Force
+    Write-Host "Created directory $configDir for configuration file."
+}
 
 # Check if the configuration file exists
 if (Test-Path -Path $configFile) {
