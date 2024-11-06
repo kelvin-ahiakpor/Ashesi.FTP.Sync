@@ -96,9 +96,12 @@ kill %1 # kill first job. this stops the script if it is the first job.
 ./sync_script.sh & # restart the job if needed.
 ```
 
-**PS:**: 
+---
+
+## PS: 
 You can also try killing and restarting the job (on macOS) to see if that solves the caching issue, I doubt though.
 I have not tested this extensively on Windows so feel free to hit me up w your bug reports on kelvin.ahiakpor@ashesi.edu.gh
+
 ---
 
 ### Disclaimer
