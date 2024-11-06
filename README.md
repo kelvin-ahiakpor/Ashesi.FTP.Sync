@@ -43,7 +43,7 @@ Depending on your OS, you can use the appropriate script to automate file syncin
 - **macOS/Linux**: Run the `sync_script.sh` file by navigating to its directory and executing:
     ```bash
     chmod +x sync_to_ftp.sh
-    ./sync_script.sh
+    ./sync_script.sh &
     ```
 
 - **Windows**: Run the `sync_script.ps1` PowerShell script. Directory Monitor can be configured to trigger `sync_script.ps1` on changes if desired.
@@ -67,7 +67,11 @@ REMOTE_DIR="/path/to/remote/directory"
 ## Notes
 
 This script is designed to assist students in automating the sync process for WebTech projects and assignments on the Ashesi server.
-
+On macOS this script is run as a job. Here is how to manuever.
+    ```bash
+    jobs # view all running jobs
+    kill %1 # kill first job. this stops the script if it is the first job.  
+    ```
 ---
 
 ### Disclaimer
