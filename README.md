@@ -68,13 +68,13 @@ REMOTE_DIR="/path/to/remote/directory"
 
 ## Help with images
 Here is what your remote directory looks like in Filezilla:
-![Filezilla1](https://github.com/kelvin-ahiakpor/kelvin-ahiakpor.github.io/blob/main/ftpsync1.png)
+![Filezilla1](https://github.com/kelvin-ahiakpor/kelvin-ahiakpor.github.io/blob/main/images/ftpsync1.png)
 
 ## Troubleshooting
 
 - **macOS/Linux**: Ensure `lftp` and `fswatch` are installed and configured properly.
 - **Windows**: Verify that WinSCP is correctly installed and Directory Monitor (if used) is configured to track changes.
-- **Mistake in initial setup**: Maybe you used the wrong password or path somewhere. To Fix this run these commands.
+- **Mistake in initial setup**: Maybe you used the wrong password or path somewhere. To fix this run these commands.
 ```bash
 rm ~/Development/scripts/sync_config.conf
 ./sync_to_ftp.sh
