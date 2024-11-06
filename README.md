@@ -74,6 +74,11 @@ Here is what your remote directory looks like in Filezilla:
 
 - **macOS/Linux**: Ensure `lftp` and `fswatch` are installed and configured properly.
 - **Windows**: Verify that WinSCP is correctly installed and Directory Monitor (if used) is configured to track changes.
+- **Mistake in initial setup**: Maybe you used the wrong password or path somewhere. To Fix this run these commands.
+```bash
+rm ~/Development/scripts/sync_config.conf
+./sync_to_ftp.sh
+```
 
 ## Notes
 
