@@ -46,7 +46,7 @@ Automatically track changes in your code base and upload to FileZilla FTP Server
     ./sync_to_ftp.sh #strictly for your first run!
     ```
 
-- **Running after setup**: When you are done setting up the service will start running. But assuming you stop the service and start gain use the following command:
+* **Running after setup**: When you are done setting up the service will start running. But assuming you stop the service and start gain use the following command:
     ```bash
     ./sync_to_ftp.sh & #subsequent runs can be in background with the added &
     ```
