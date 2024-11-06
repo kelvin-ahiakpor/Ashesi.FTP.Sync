@@ -62,7 +62,7 @@ An example `sync_config.conf`:
 FTP_USER="your_username"
 FTP_PASS="your_password"
 LOCAL_DIR="/path/to/local/directory" # Use format C:\path\to\directory for Windows
-REMOTE_DIR="/path/to/remote/directory" #Do not put quoutes ("" or '' around your path)
+REMOTE_DIR="/path/to/remote/directory" # Do not put quoutes ("" or '' around your path)
 ```
 
 ## Help with images
