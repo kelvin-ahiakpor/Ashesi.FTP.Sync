@@ -24,10 +24,10 @@ Depending on your OS, you can use the appropriate script to automate file syncin
 
 ## Setup and Configuration
 
-1. **Clone the Repository**: Begin by cloning this repository into a desired folder. Your webtech folder preferrably.
+1. **Clone the Repository**: Begin by cloning this repository into a desired folder on your system to keep the script and configuration file organized.
     ```bash
-    git clone https://github.com/your-username/your-repo-name.git
-    cd your-repo-name
+    git clone https://github.com/kelvin-ahiakpor/Ashesi.FTP.Sync.git
+    cd Ashesi.FTP.Sync
     ```
 
 2. **Initial Run**: The first time you run the script, it will prompt you to enter the following details:
