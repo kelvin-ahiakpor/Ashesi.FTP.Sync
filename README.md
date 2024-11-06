@@ -42,11 +42,13 @@ Depending on your OS, you can use the appropriate script to automate file syncin
 
 - **macOS/Linux**: Run the `sync_script.sh` file by navigating to its directory and executing:
     ```bash
+    cd macOS
     chmod +x sync_to_ftp.sh
-    ./sync_script.sh &
+    ./sync_to_ftp.sh &
     ```
 
 - **Windows**: Run the `sync_script.ps1` PowerShell script. Directory Monitor can be configured to trigger `sync_script.ps1` on changes if desired.
+To find `sync_script.ps1`. Follow this path \Ashesi.FTP.Sync\windows
 
 ## Example Configuration
 
