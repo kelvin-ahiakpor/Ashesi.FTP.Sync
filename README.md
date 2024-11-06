@@ -81,10 +81,10 @@ rm ~/Development/scripts/sync_config.conf
 
 ## Notes
 
-This script is designed to assist students in automating the sync process for WebTech projects and assignments on the Ashesi server.
-While testing on macOS, I realized that after about an hour, the browser stops retrieving the updated files. 
-It seems like a browser caching problem. To fix try clearing webpage cache using  Ctrl + F5 or Cmd + Shift + R.
-I'm still figuring out how to fix this, most times I solve this issue by restarting my laptop or browser (quite undesirable). 
+This script is designed to assist in automating the sync process for WebTech projects and assignments on the Ashesi server.
+While using on macOS, I realized that after about an hour, the browser stops retrieving the updated files. 
+It seems like a browser caching problem. To fix, do a 'hard refresh' using  Ctrl + F5 or Cmd + Shift + R.
+In other cases you may want to restart your browser or laptop (quite undesirable, so try the hard refresh many times). 
 
 **Extra**:
 On macOS this script is run as a job. Here is how to manuever:
