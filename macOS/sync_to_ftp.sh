@@ -25,8 +25,8 @@ else
     read -p "Enter your Ashesi username: " FTP_USER
     read -p "Enter your FTP password: " FTP_PASS #-sp for secure
     echo
-    read -p "Enter the local path to your lab/project directory (e.g., /path/to/lab): " LOCAL_DIR
-    read -p "Enter the remote path on the server (e.g., /public_html/lab5): " REMOTE_DIR
+    read -p "Enter the local path to your lab/project directory (e.g., /path/to/lab) DON'T USE "" or '' START WITH /: " LOCAL_DIR
+    read -p "Enter the remote path on the server (e.g., /public_html/lab5) - DON'T USE "" or '' START WITH /: " REMOTE_DIR
 
     # Save the details to the configuration file
     cat <<EOL > "$CONFIG_FILE"
