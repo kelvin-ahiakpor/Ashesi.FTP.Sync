@@ -51,7 +51,7 @@ echo "Starting sync process..."
 
 # Function to sync files using lftp
 sync_files() {
-    echo "Starting sync..."
+    echo "$(date '+%H:%M:%S') - Starting sync..."
     # Run lftp sync and capture the output
     sync_output=$(lftp -u "$FTP_USER","$FTP_PASS" -p "$FTP_PORT" "$FTP_HOST" <<EOF
 mirror -R --verbose --only-newer "$LOCAL_DIR" "$REMOTE_DIR"
@@ -61,18 +61,21 @@ EOF
     
     # Display which files were synced
     if [[ $sync_output == *"mirror:"* ]]; then
-        echo "$sync_output" | grep "->" # Show only lines that indicate file sync actions
-        echo "Sync complete."
+        echo "$sync_output" | grep "->" | while read -r line; do
+            echo "$(date '+%H:%M:%S') - Synced file: $line"
+        done
+        echo "$(date '+%H:%M:%S') - Sync complete."
     else
-        echo "No new files to sync."
+        echo "$(date '+%H:%M:%S') - No new files to sync."
     fi
 }
+
 
 # Run initial sync
 sync_files
 
 # Use fswatch to monitor changes and run sync_files on change
 fswatch -o "$LOCAL_DIR" | while read change; do
-    echo "Change detected. Syncing files..."
+    echo "$(date '+%H:%M:%S') - Change detected. Syncing files..."
     sync_files
 done
