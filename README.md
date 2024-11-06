@@ -2,7 +2,6 @@
 # Ashesi FTP Sync 
 
 Automatically track changes in your code base and upload to FileZilla FTP Server.
-Depending on your OS, you can use the appropriate script to automate file syncing and monitor changes.
 
 ## Features
 
