@@ -44,7 +44,12 @@ Depending on your OS, you can use the appropriate script to automate file syncin
     ```bash
     cd macOS
     chmod +x sync_to_ftp.sh
-    ./sync_to_ftp.sh &
+    ./sync_to_ftp.sh #strictly for your first run!
+    ```
+
+When you are done setting up, run in background using the & at the end of the command
+    ```bash
+    ./sync_to_ftp.sh & #subsequent runs can be in background
     ```
 
 - **Windows**: Run the `sync_script.ps1` PowerShell script. Directory Monitor can be configured to trigger `sync_script.ps1` on changes if desired.
@@ -60,6 +65,10 @@ FTP_PASS="your_password"
 LOCAL_DIR="/path/to/local/directory" # Use format C:\path\to\directory for Windows
 REMOTE_DIR="/path/to/remote/directory"
 ```
+
+## Help with images
+Here is what your remote directory looks like in Filezilla:
+![Filezilla1](https://github.com/kelvin-ahiakpor/kelvin-ahiakpor.github.io/blob/main/ftpsync1.png)
 
 ## Troubleshooting
 
