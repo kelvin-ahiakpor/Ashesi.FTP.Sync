@@ -24,14 +24,19 @@ Depending on your OS, you can use the appropriate script to automate file syncin
 
 ## Setup and Configuration
 
-The script will prompt you to enter the following details the first time it is run:
+1. **Clone the Repository**: Begin by cloning this repository into a desired folder. Your webtech folder preferrably.
+    ```bash
+    git clone https://github.com/your-username/your-repo-name.git
+    cd your-repo-name
+    ```
 
-- **Ashesi Username**
-- **FTP Password**
-- **Local Directory Path**: Path to your lab/project directory.
-- **Remote Directory Path**: Path on the server where the files will be synced.
+2. **Initial Run**: The first time you run the script, it will prompt you to enter the following details:
+    - **Ashesi Username**
+    - **FTP Password**
+    - **Local Directory Path**: Path to your lab/project directory.
+    - **Remote Directory Path**: Path on the server where the files will be synced.
 
-The details will be saved in `sync_config.conf` in your home directory. You can edit this file later if needed.
+    These details will be saved in `sync_config.conf` within this folder, so everything stays organized.
 
 ## Usage
 
