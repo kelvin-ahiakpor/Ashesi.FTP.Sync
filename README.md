@@ -67,10 +67,11 @@ REMOTE_DIR="/path/to/remote/directory"
 ## Notes
 
 This script is designed to assist students in automating the sync process for WebTech projects and assignments on the Ashesi server.
-While testing on macOS I realized that the code may break at a point, i.e. some of your changes wont be uploaded.
-I am still figuring out how to fix this, by the way I fixed this is by restarting my laptop or browser (laptop mostly).
-That may be undesirable for many so I will try to fix it later. 
-You can also try killing and restarting the job (on macOS) to see if that solves the issue.
+While testing on macOS, I realized that after about an hour, the browser stops retrieving the updated files. 
+It seems like a browser caching problem. To fix try clearing webpage cache using  Ctrl + F5 or Cmd + Shift + R.
+I'm still figuring out how to fix this, most times I solve this issue by restarting my laptop or browser (quite undesirable). 
+
+**Extra**:
 On macOS this script is run as a job. Here is how to manuever:
 
 ```bash
@@ -79,7 +80,9 @@ kill %1 # kill first job. this stops the script if it is the first job.
 ./sync_script.sh & # restart the job if needed.
 ```
 
-PS: I have not tested this extensively on Windows so feel free to hit me up w your bug reports on kelvin.ahiakpor@ashesi.edu.gh
+PS: 
+You can also try killing and restarting the job (on macOS) to see if that solves the caching issue, I doubt though.
+I have not tested this extensively on Windows so feel free to hit me up w your bug reports on kelvin.ahiakpor@ashesi.edu.gh
 ---
 
 ### Disclaimer
