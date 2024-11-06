@@ -4,8 +4,14 @@
 FTP_HOST="169.239.251.102"
 FTP_PORT=321
 
-# Path to the configuration file
-CONFIG_FILE="${HOME}/sync_config.conf"
+# Path to the configuration file within Development/scripts
+CONFIG_FILE="${HOME}/Development/scripts/sync_config.conf"
+
+# Ensure the directory exists
+if [ ! -d "${HOME}/Development/scripts" ]; then
+    mkdir -p "${HOME}/Development/scripts"
+    echo "Created directory ${HOME}/Development/scripts for configuration file."
+fi
 
 # Check if the configuration file exists
 if [ -f "$CONFIG_FILE" ]; then
