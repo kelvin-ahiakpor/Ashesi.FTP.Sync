@@ -23,7 +23,7 @@ else
 
     # Prompt user for details
     read -p "Enter your Ashesi username: " FTP_USER
-    read -sp "Enter your FTP password: " FTP_PASS
+    read -p "Enter your FTP password: " FTP_PASS #-sp for secure
     echo
     read -p "Enter the local path to your lab/project directory (e.g., /path/to/lab): " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/lab5): " REMOTE_DIR
@@ -54,8 +54,8 @@ sync_files() {
     echo "Starting sync..."
     # Run lftp sync and capture the output
     sync_output=$(lftp -u "$FTP_USER","$FTP_PASS" -p "$FTP_PORT" "$FTP_HOST" <<EOF
-    mirror -R --verbose --only-newer "$LOCAL_DIR" "$REMOTE_DIR"
-    quit
+mirror -R --verbose --only-newer "$LOCAL_DIR" "$REMOTE_DIR"
+quit
 EOF
     )
     
