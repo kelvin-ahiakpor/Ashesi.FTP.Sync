@@ -31,7 +31,7 @@ Automatically track changes in your code base and upload to FileZilla FTP Server
 
 2. **Initial Run**: The first time you run the script, it will prompt you to enter the following details:
     - **Ashesi Username**
-    - **FTP Password**
+    - **FTP Password** The one you use for ssh/FileZilla (Check Simon's email)
     - **Local Directory Path**: Path to your lab/project directory.
     - **Remote Directory Path**: Path on the server where the files will be synced.
 
