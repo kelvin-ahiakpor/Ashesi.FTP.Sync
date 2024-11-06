@@ -42,6 +42,7 @@ Depending on your OS, you can use the appropriate script to automate file syncin
 
 - **macOS/Linux**: Run the `sync_script.sh` file by navigating to its directory and executing:
     ```bash
+    chmod +x sync_to_ftp.sh
     ./sync_script.sh
     ```
 

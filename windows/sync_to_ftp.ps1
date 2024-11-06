@@ -18,7 +18,7 @@ if (Test-Path -Path $configFile) {
     
     # Prompt the user for FTP credentials and paths
     $FTP_USER = Read-Host "Enter your Ashesi username"
-    $FTP_PASS = Read-Host "Enter your FTP password" -AsSecureString | ConvertFrom-SecureString
+    $FTP_PASS = Read-Host "Enter your FTP password" #-AsSecureString | ConvertFrom-SecureString
     $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\path\to\lab)"
     $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/lab5)"
 
