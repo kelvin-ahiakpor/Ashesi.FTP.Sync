@@ -1,4 +1,4 @@
-# Path to the configuration file within Development\scripts
+# Path to the configuration directory and file within Development\scripts
 $configDir = "$HOME\Development\scripts"
 $configFile = "$configDir\sync_config.conf"
 
@@ -43,20 +43,23 @@ Write-Host "Remote Directory: $REMOTE_DIR"
 Write-Host "========================="
 Write-Host "Starting sync process..."
 
-# Function to sync files using WinSCP
+# Function to sync files using WinSCP with timestamped logs
 function Sync-Files {
+    $timeStamp = (Get-Date -Format "HH:mm:ss")
     $passPlainText = (New-Object -TypeName System.Management.Automation.PSCredential `
         -ArgumentList 'user', (ConvertTo-SecureString -String $FTP_PASS -AsPlainText -Force)).GetNetworkCredential().Password
 
-    & "C:\Program Files (x86)\WinSCP\WinSCP.com" /command `
+    # Run WinSCP sync command
+    $syncResult = & "C:\Program Files (x86)\WinSCP\WinSCP.com" /command `
         "open ftp://$FTP_USER:$passPlainText@169.239.251.102:321" `
         "synchronize remote $REMOTE_DIR $LOCAL_DIR -mirror" `
         "exit"
     
-    if ($?) {
-        Write-Host "Sync complete."
+    # Display the result with timestamps
+    if ($syncResult -match "Transfer done") {
+        Write-Host "$timeStamp - Sync complete."
     } else {
-        Write-Host "Sync failed. Check configuration or connection."
+        Write-Host "$timeStamp - No new files to sync."
     }
 }
 
@@ -71,8 +74,14 @@ $watcher.EnableRaisingEvents = $true
 $watcher.NotifyFilter = [System.IO.NotifyFilters]'FileName, LastWrite'
 
 # Register an event to trigger sync on change
-Register-ObjectEvent $watcher Changed -Action { Sync-Files }
-Write-Host "Monitoring $LOCAL_DIR for changes..."
+Register-ObjectEvent $watcher Changed -Action { 
+    $timeStamp = (Get-Date -Format "HH:mm:ss")
+    Write-Host "$timeStamp - Change detected. Syncing files..."
+    Sync-Files 
+}
+
+$timeStamp = (Get-Date -Format "HH:mm:ss")
+Write-Host "$timeStamp Monitoring $LOCAL_DIR for changes..."
 
 # Keep the script running
-while ($true) { Start-Sleep -Seconds 10 }
+while ($true) { Start-Sleep -Seconds 2 }
