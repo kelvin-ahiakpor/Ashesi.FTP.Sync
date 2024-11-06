@@ -67,7 +67,7 @@ REMOTE_DIR="/path/to/remote/directory"
 ## Notes
 
 This script is designed to assist students in automating the sync process for WebTech projects and assignments on the Ashesi server.
-On macOS this script is run as a job. Here is how to manuever.
+On macOS this script is run as a job. Here is how to manuever:
 
     ```bash
     jobs # view all running jobs
