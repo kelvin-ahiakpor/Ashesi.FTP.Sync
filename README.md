@@ -3,6 +3,9 @@
 
 Automatically track changes in your code base and upload to FileZilla FTP Server.
 
+## Demo
+Watch this [video](https://youtube.com)
+
 ## Features
 
 - **Configuration file**: Saves your Ashesi username, password, local directory, and remote directory details in a configuration file (`sync_config.conf`) for easy reuse.
