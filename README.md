@@ -42,7 +42,7 @@ Watch this [video](https://youtube.com)
 
 ## Usage
 
-- **macOS/Linux**: Run the `sync_script.sh` file by navigating to its directory and executing:
+- **macOS/Linux**: Run the `sync_to_ftp.sh` file by navigating to its directory and executing:
     ```bash
     cd macOS
     chmod +x sync_to_ftp.sh
@@ -54,8 +54,8 @@ Watch this [video](https://youtube.com)
     ./sync_to_ftp.sh & #subsequent runs can be in background with the added &
     ```
 
-- **Windows**: Run the `sync_script.ps1` PowerShell script. Directory Monitor can be configured to trigger `sync_script.ps1` on changes if desired.
-To find `sync_script.ps1`. Follow this path \Ashesi.FTP.Sync\windows
+- **Windows**: Run the `sync_to_ftp.ps1` PowerShell script. Directory Monitor can be configured to trigger `sync_to_ftp.ps1` on changes if desired.
+To find `sync_to_ftp.ps1`. Follow this path \Ashesi.FTP.Sync\windows
 
 ## Example Configuration
 
