@@ -4,14 +4,14 @@ $configFile = "$configDir\sync_config.conf"
 
 # Ensure the directory exists
 if (!(Test-Path -Path $configDir)) {
-    New-Item -ItemType Directory -Path $configDir -Force
+    New-Item -ItemType Directory -Path "$configDir" -Force
     Write-Host "Created directory $configDir for configuration file."
 }
 
 # Check if the configuration file exists
-if (Test-Path -Path $configFile) {
+if (Test-Path -Path "$configFile") {
     # Load configuration from the file
-    . $configFile
+    . "$configFile"
 } else {
     # Prompt for configuration details on first run
     Write-Host "Configuration file not found. Creating a new one..."
@@ -19,8 +19,8 @@ if (Test-Path -Path $configFile) {
     # Prompt the user for FTP credentials and paths
     $FTP_USER = Read-Host "Enter your Ashesi username"
     $FTP_PASS = Read-Host "Enter your FTP password" #-AsSecureString | ConvertFrom-SecureString
-    $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\path\to\lab) - No ('') marks needed"
-    $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/lab5) - No ('') marks needed"
+    $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\\path\\to\\lab)"
+    $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
 
     # Save the details to the configuration file
     @"
@@ -28,7 +28,7 @@ if (Test-Path -Path $configFile) {
 `$FTP_PASS = '$FTP_PASS'
 `$LOCAL_DIR = '$LOCAL_DIR'
 `$REMOTE_DIR = '$REMOTE_DIR'
-"@ | Out-File -FilePath $configFile -Encoding UTF8
+"@ | Out-File -FilePath "$configFile" -Encoding UTF8
 
     Write-Host "Configuration saved to $configFile. You won't be asked for these details next time."
 }
@@ -52,7 +52,7 @@ function Sync-Files {
     # Run WinSCP sync command
     $syncResult = & "C:\Program Files (x86)\WinSCP\WinSCP.com" /command `
         "open ftp://${FTP_USER}:${passPlainText}@169.239.251.102:321" `
-        "synchronize remote $REMOTE_DIR $LOCAL_DIR -mirror" `
+        "synchronize remote `"$REMOTE_DIR`" `"$LOCAL_DIR`" -mirror" `
         "exit"
     
     # Display the result with timestamps
@@ -68,7 +68,7 @@ Sync-Files
 
 # Monitor for changes in the local directory
 $watcher = New-Object System.IO.FileSystemWatcher
-$watcher.Path = $LOCAL_DIR
+$watcher.Path = "$LOCAL_DIR"
 $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
 $watcher.NotifyFilter = [System.IO.NotifyFilters]'FileName, LastWrite'
