@@ -22,7 +22,6 @@ Watch this [video](https://youtube.com)
 ### For Windows
 
 - **WinSCP**: Download and install [WinSCP](https://winscp.net/eng/download.php) for secure file transfer.
-- **Directory Monitor (Optional)**: [Directory Monitor](https://directorymonitor.com/download) can be used to detect file changes on Windows.
 
 ## Setup and Configuration
 
@@ -54,8 +53,7 @@ Watch this [video](https://youtube.com)
     ./sync_to_ftp.sh & #subsequent runs can be in background with the added &
     ```
 
-- **Windows**: Run the `sync_to_ftp.ps1` PowerShell script. Directory Monitor can be configured to trigger `sync_to_ftp.ps1` on changes if desired.
-To find `sync_to_ftp.ps1`. Follow this path \Ashesi.FTP.Sync\windows
+- **Windows**: Run the `sync_to_ftp.ps1` PowerShell script in this path \Ashesi.FTP.Sync\windows
 
 ## Example Configuration
 
@@ -75,7 +73,7 @@ Here is what your remote directory looks like in Filezilla:
 ## Troubleshooting
 
 - **macOS/Linux**: Ensure `lftp` and `fswatch` are installed and configured properly.
-- **Windows**: Verify that WinSCP is correctly installed and Directory Monitor (if used) is configured to track changes.
+- **Windows**: Verify that WinSCP is correctly installed to `C:\Program Files (x86)\WinSCP\WinSCP.com`.
 - **Mistake in initial setup**: Maybe you used the wrong password or path initially. To fix, run the following commands:
 ```bash
 rm ~/Development/scripts/sync_config.conf
