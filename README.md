@@ -48,12 +48,19 @@ Watch this [video](https://youtube.com)
     ./sync_to_ftp.sh #strictly for your first run!
     ```
 
-  * **Running after setup**: When you are done setting up the service will start running. But assuming you stop the service and start gain use the following command:
+  * **Running after setup**: When you are done setting up the service will start running. But assuming you stop the service and start again use the following command:
     ```bash
     ./sync_to_ftp.sh & #subsequent runs can be in background with the added &
     ```
 
 - **Windows**: Run the `sync_to_ftp.ps1` PowerShell script in this path \Ashesi.FTP.Sync\windows
+
+    **Before Running on Windows**:
+    - Open PowerShell as Administrator.
+    - Allow scripts to run by executing:
+        ```powershell
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
+        ```
 
 ## Example Configuration
 
@@ -63,7 +70,7 @@ An example `sync_config.conf`:
 FTP_USER="your_username"
 FTP_PASS="your_password"
 LOCAL_DIR="/path/to/local/directory" # Use format C:\path\to\directory for Windows
-REMOTE_DIR="/path/to/remote/directory" # Do not put quoutes ("" or '' around your path)
+REMOTE_DIR="/path/to/remote/directory" # Do not put quotes ("" or '' around your path)
 ```
 
 ## Help with images
@@ -88,7 +95,7 @@ It seems like a browser caching problem. To fix, do a 'hard refresh' using  Ctrl
 In other cases you may want to restart your browser or laptop (quite undesirable, so try the hard refresh many times). 
 
 **Extra**:
-On macOS this script is run as a job. Here is how to manuever:
+On macOS this script is run as a job. Here is how to maneuver:
 
 ```bash
 jobs # view all running jobs
