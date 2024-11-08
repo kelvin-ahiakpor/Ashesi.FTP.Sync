@@ -51,7 +51,7 @@ function Sync-Files {
 
     # Run WinSCP sync command
     $syncResult = & "C:\Program Files (x86)\WinSCP\WinSCP.com" /command `
-        "open ftp://$FTP_USER:$passPlainText@169.239.251.102:321" `
+        "open ftp://${FTP_USER}:${passPlainText}@169.239.251.102:321" `
         "synchronize remote $REMOTE_DIR $LOCAL_DIR -mirror" `
         "exit"
     
