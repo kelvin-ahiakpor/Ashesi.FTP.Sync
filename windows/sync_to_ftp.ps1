@@ -20,7 +20,7 @@ if (Test-Path -Path "$configFile") {
     $FTP_USER = Read-Host "Enter your Ashesi username"
     $FTP_PASS = Read-Host "Enter your FTP password" #-AsSecureString | ConvertFrom-SecureString
     $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\\path\\to\\lab)"
-    $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
+    $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/lab5)"
 
     # Save the details to the configuration file
     @"
@@ -50,16 +50,19 @@ function Sync-Files {
         -ArgumentList 'user', (ConvertTo-SecureString -String $FTP_PASS -AsPlainText -Force)).GetNetworkCredential().Password
 
     # Run WinSCP sync command
-    $syncResult = & "C:\Program Files (x86)\WinSCP\WinSCP.com" /command `
-        "open ftp://${FTP_USER}:${passPlainText}@169.239.251.102:321" `
-        "synchronize remote `"$REMOTE_DIR`" `"$LOCAL_DIR`" -mirror" `
-        "exit"
-    
-    # Display the result with timestamps
-    if ($syncResult -match "Transfer done") {
-        Write-Host "$timeStamp - Sync complete."
-    } else {
-        Write-Host "$timeStamp - No new files to sync."
+    try {
+        $syncResult = & "C:\Program Files (x86)\WinSCP\WinSCP.com" /command `
+            "open ftp://${FTP_USER}:${passPlainText}@169.239.251.102:321" `
+            "synchronize remote `"$REMOTE_DIR`" `"$LOCAL_DIR`" -mirror" `
+            "exit"
+        
+        if ($syncResult -match "Transfer done") {
+            Write-Host "$timeStamp - Sync complete."
+        } else {
+            Write-Host "$timeStamp - No new files to sync."
+        }
+    } catch {
+        Write-Host "$timeStamp - ERROR: $($_.Exception.Message)" | Tee-Object -FilePath "$configDir\error.log" -Append
     }
 }
 
@@ -83,5 +86,5 @@ Register-ObjectEvent $watcher Changed -Action {
 $timeStamp = (Get-Date -Format "HH:mm:ss")
 Write-Host "$timeStamp Monitoring $LOCAL_DIR for changes..."
 
-# Keep the script running
+# Keep the script running and display messages on screen
 while ($true) { Start-Sleep -Seconds 2 }
