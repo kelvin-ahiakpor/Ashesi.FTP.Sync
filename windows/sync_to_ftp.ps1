@@ -187,4 +187,4 @@ Register-ObjectEvent $watcher "Deleted" -Action $action
 Register-ObjectEvent $watcher "Renamed" -Action $action
 
 Write-Host "Watching for changes. Press Ctrl+C to exit."
-while ($true) { Start-Sleep -Seconds 1 }
+while ($true) { Start-Sleep -Seconds 0.2 }
