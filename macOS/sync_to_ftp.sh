@@ -1,91 +1,88 @@
 #!/bin/bash
 
-# Ashesi Server Constants
+# Constants
 FTP_HOST="169.239.251.102"
 FTP_PORT=321
-
-# Path to the configuration file within Development/scripts
 CONFIG_FILE="${HOME}/Development/scripts/sync_config.conf"
 KEYCHAIN_NAME="ashesi_ftp_sync"
+LFTP_SCRIPT="/tmp/lftp_commands_$$"
+DEBOUNCE_DELAY=2
 
-# Ensure the directory exists
+# Error handling
+set -e
+trap 'cleanup' EXIT INT TERM
+
+cleanup() {
+    echo "Cleaning up..."
+    rm -f "$LFTP_SCRIPT"
+    exit 0
+}
+
+# Directory check
 if [ ! -d "${HOME}/Development/scripts" ]; then
     mkdir -p "${HOME}/Development/scripts"
-    echo "Created directory ${HOME}/Development/scripts for configuration file."
 fi
 
-# Function to get password from Keychain
-get_password() {
-    security find-generic-password -w -a "$FTP_USER" -s "$KEYCHAIN_NAME"
-}
-
-# Function to store password in Keychain
-store_password() {
-    security add-generic-password -a "$FTP_USER" -s "$KEYCHAIN_NAME" -w "$1"
-}
-
-# Check if the configuration file exists
+# Config and credential handling
 if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
-    # Attempt to get password from keychain
-    FTP_PASS=$(get_password)
+    CACHED_PASS=$(security find-generic-password -w -a "$FTP_USER" -s "$KEYCHAIN_NAME")
 else
-    echo "Configuration file not found. Creating a new one..."
-
+    echo "First time setup..."
     read -p "Enter your Ashesi username: " FTP_USER
     read -sp "Enter your FTP password: " FTP_PASS
     echo
-    read -p "Enter the local path to your lab/project directory: " LOCAL_DIR
-    read -p "Enter the remote path on the server: " REMOTE_DIR
-
-    # Store password in Keychain
-    store_password "$FTP_PASS"
+    read -p "Enter local path: " LOCAL_DIR
+    read -p "Enter remote path: " REMOTE_DIR
     
-    # Save non-sensitive details to config file
+    security add-generic-password -a "$FTP_USER" -s "$KEYCHAIN_NAME" -w "$FTP_PASS"
+    CACHED_PASS="$FTP_PASS"
+    
     cat <<EOL > "$CONFIG_FILE"
 FTP_USER="$FTP_USER"
 LOCAL_DIR="$LOCAL_DIR"
 REMOTE_DIR="$REMOTE_DIR"
 EOL
-
-    echo "Configuration saved securely. You won't be asked for these details next time."
 fi
 
-# Rest of your sync script remains the same
+# Create persistent LFTP script
+cat > "$LFTP_SCRIPT" << EOF
+set ssl:verify-certificate no
+set ftp:ssl-allow no
+set net:timeout 10
+set net:max-retries 3
+set net:reconnect-interval-base 5
+open -u "$FTP_USER","$CACHED_PASS" -p $FTP_PORT $FTP_HOST
+EOF
+
+# Sync function with persistent connection
+sync_files() {
+    echo "$(date '+%H:%M:%S') - Syncing changes..."
+    lftp -f "$LFTP_SCRIPT" << EOF
+mirror -R --verbose --only-newer "$LOCAL_DIR" "$REMOTE_DIR"
+EOF
+}
+
+# Print configuration
 echo "========================="
 echo "FTP Host: $FTP_HOST"
-echo "Port: $FTP_PORT" 
 echo "Username: $FTP_USER"
 echo "Local Directory: $LOCAL_DIR"
 echo "Remote Directory: $REMOTE_DIR"
 echo "========================="
 
-# Function to sync files using lftp
-sync_files() {
-    echo "$(date '+%H:%M:%S') - Starting sync..."
-    # Get password from keychain for each sync
-    CURRENT_PASS=$(get_password)
-    sync_output=$(lftp -u "$FTP_USER","$CURRENT_PASS" -p "$FTP_PORT" "$FTP_HOST" <<EOF
-mirror -R --verbose --only-newer "$LOCAL_DIR" "$REMOTE_DIR"
-quit
-EOF
-    )
-    
-    if [[ $sync_output == *"mirror:"* ]]; then
-        echo "$sync_output" | grep "->" | while read -r line; do
-            echo "$(date '+%H:%M:%S') - Synced file: $line"
-        done
-        echo "$(date '+%H:%M:%S') - Sync complete."
-    else
-        echo "$(date '+%H:%M:%S') - No new files to sync."
-    fi
-}
-
-# Run initial sync
+# Initial sync
 sync_files
 
-# Monitor changes
+# Debounced monitoring
+declare -A last_sync
 fswatch -o "$LOCAL_DIR" | while read change; do
-    echo "$(date '+%H:%M:%S') - Change detected. Syncing files..."
-    sync_files
+    current_time=$(date +%s)
+    last_time=${last_sync["sync"]:-0}
+    
+    if (( current_time - last_time >= DEBOUNCE_DELAY )); then
+        echo "$(date '+%H:%M:%S') - Change detected, syncing..."
+        sync_files
+        last_sync["sync"]=$current_time
+    fi
 done
