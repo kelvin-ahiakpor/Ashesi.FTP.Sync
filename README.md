@@ -92,9 +92,14 @@ Here is what your remote directory looks like in Filezilla:
     **Windows**
     ```powershell
     Remove-Item -Path "$HOME\Development\scripts\sync_config.conf"
-    #Find the file script and run it again. You can do this manually or using commands:
+    ```
+
+    Next, Find the script and run it again. You can do this manually or using commands:
+
+    ```powershell
     cd <path_to_cloned_repo>\windows 
     .\sync_to_ftp.ps1
+    ```
 
 ## Notes
 
