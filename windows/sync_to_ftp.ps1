@@ -22,7 +22,7 @@ function Write-ErrorLog {
 }
 
 # Function to create encryption key
-function Create-EncryptionKey {
+function New-EncryptionKey {
     $Key = New-Object Byte[] 32
     [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($Key)
     $Key | Set-Content $KEY_FILE -Encoding Byte
@@ -32,13 +32,13 @@ function Create-EncryptionKey {
 # Function to get encryption key
 function Get-EncryptionKey {
     if (!(Test-Path $KEY_FILE)) {
-        return Create-EncryptionKey
+        return New-EncryptionKey
     }
     return Get-Content $KEY_FILE -Encoding Byte
 }
 
 # Function to encrypt text
-function Encrypt-Text {
+function Protect-Text {
     param([string]$Text)
     
     try {
@@ -54,7 +54,7 @@ function Encrypt-Text {
 }
 
 # Function to decrypt text
-function Decrypt-Text {
+function Unprotect-Text {
     param([string]$EncryptedText)
     
     try {
@@ -83,7 +83,7 @@ if (Test-Path $CONFIG_FILE) {
     # Load user-specific details from the config file
     $config = Get-Content $CONFIG_FILE | ConvertFrom-Json
     $FTP_USER = $config.FTP_USER
-    $FTP_PASS = Decrypt-Text $config.FTP_PASS
+    $FTP_PASS = Unprotect-Text $config.FTP_PASS
     $LOCAL_DIR = $config.LOCAL_DIR
     $REMOTE_DIR = $config.REMOTE_DIR
 } else {
@@ -98,7 +98,7 @@ if (Test-Path $CONFIG_FILE) {
     $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
 
     # Encrypt password and save configuration
-    $encryptedPass = Encrypt-Text $FTP_PASS
+    $encryptedPass = Protect-Text $FTP_PASS
     $config = @{
         FTP_USER = $FTP_USER
         FTP_PASS = $encryptedPass
