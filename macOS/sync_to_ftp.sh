@@ -8,6 +8,14 @@ KEYCHAIN_NAME="ashesi_ftp_sync"
 LFTP_SCRIPT="/tmp/lftp_commands_$$"
 DEBOUNCE_DELAY=2
 
+# Check for required commands
+for cmd in lftp fswatch security; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "Error: $cmd is required but not installed"
+        exit 1
+    fi
+done
+
 # Error handling
 set -e
 trap 'cleanup' EXIT INT TERM
@@ -74,15 +82,16 @@ echo "========================="
 # Initial sync
 sync_files
 
-# Debounced monitoring
-declare -A last_sync
+# Simple timestamp-based debouncing
+last_sync_time=0
+
+# Monitor changes
 fswatch -o "$LOCAL_DIR" | while read change; do
     current_time=$(date +%s)
-    last_time=${last_sync["sync"]:-0}
     
-    if (( current_time - last_time >= DEBOUNCE_DELAY )); then
+    if (( current_time - last_sync_time >= DEBOUNCE_DELAY )); then
         echo "$(date '+%H:%M:%S') - Change detected, syncing..."
         sync_files
-        last_sync["sync"]=$current_time
+        last_sync_time=$current_time
     fi
 done
