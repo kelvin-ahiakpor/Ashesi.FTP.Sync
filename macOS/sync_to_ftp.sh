@@ -23,7 +23,7 @@ else
 
     # Prompt user for details
     read -p "Enter your Ashesi username: " FTP_USER
-    read -p "Enter your FTP password: " FTP_PASS #-sp for secure
+    read -sp "Enter your FTP password: " FTP_PASS #-sp for secure
     echo
     read -p "Enter the local path to your lab/project directory (e.g., /path/to/lab) DON'T USE "" or '' START WITH /: " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING) - DON'T USE "" or '' START WITH /: " REMOTE_DIR
