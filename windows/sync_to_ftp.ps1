@@ -14,13 +14,14 @@ if (!(Test-Path $SCRIPTS_DIR)) {
 
 # Ensure the encryption key exists
 if (!(Test-Path $KEY_FILE)) {
-    $encryptionKey = [System.Convert]::ToBase64String((New-Object byte[] 32 | %{Get-Random -Minimum 0 -Maximum 256}))
-    $encryptionKey | Out-File -FilePath $KEY_FILE -Encoding UTF8
+    $encryptionKey = (1..32 | ForEach-Object { [byte](Get-Random -Minimum 0 -Maximum 256) })
+    $base64Key = [Convert]::ToBase64String($encryptionKey)
+    $base64Key | Out-File -FilePath $KEY_FILE -Encoding UTF8
     Write-Host "Generated encryption key and saved to $KEY_FILE"
 }
 
 # Load encryption key
-$encryptionKey = Get-Content -Path $KEY_FILE -Raw
+$encryptionKey = [Convert]::FromBase64String((Get-Content -Path $KEY_FILE -Raw))
 
 # Functions for encryption and decryption
 function Encrypt-String {
@@ -28,7 +29,7 @@ function Encrypt-String {
         [string]$plainText
     )
     $secureString = ConvertTo-SecureString -String $plainText -AsPlainText -Force
-    $encrypted = ConvertFrom-SecureString -SecureString $secureString -Key ([Convert]::FromBase64String($encryptionKey))
+    $encrypted = ConvertFrom-SecureString -SecureString $secureString -Key $encryptionKey
     return $encrypted
 }
 
@@ -36,7 +37,7 @@ function Decrypt-String {
     param (
         [string]$encryptedText
     )
-    $secureString = ConvertTo-SecureString -String $encryptedText -Key ([Convert]::FromBase64String($encryptionKey))
+    $secureString = ConvertTo-SecureString -String $encryptedText -Key $encryptionKey
     $plainText = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString))
     return $plainText
 }
@@ -59,7 +60,7 @@ if (Test-Path $CONFIG_FILE) {
     $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
 
     # Save configuration
-    @"
+@"
 FTP_USER=$FTP_USER
 FTP_PASS=$FTP_PASS_ENCRYPTED
 LOCAL_DIR=$LOCAL_DIR
@@ -106,7 +107,8 @@ function Sync-Files {
         }
     } catch {
         Write-Host "Error: $_"
-        Write-ErrorLog $_
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        "$timestamp - Error: $_" | Out-File -Append -FilePath $LOG_FILE
     } finally {
         if ($session) {
             $session.Dispose()
