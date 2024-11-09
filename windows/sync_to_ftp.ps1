@@ -49,13 +49,15 @@ function Sync-Files {
     $passPlainText = (New-Object -TypeName System.Management.Automation.PSCredential `
         -ArgumentList 'user', (ConvertTo-SecureString -String $FTP_PASS -AsPlainText -Force)).GetNetworkCredential().Password
 
+    Write-Host "$timeStamp - Syncing files from $LOCAL_DIR to $REMOTE_DIR"
+
     # Run WinSCP sync command
     try {
-        $syncResult = & "C:\Program Files (x86)\WinSCP\WinSCP.com" /command `
+        $syncResult = & "C:\Program Files (x86)\WinSCP\WinSCP.com" /log="$configDir\winscp.log" /loglevel=2 /command `
             "open ftp://${FTP_USER}:${passPlainText}@169.239.251.102:321" `
             "synchronize remote `"$REMOTE_DIR`" `"$LOCAL_DIR`" -mirror" `
             "exit"
-        
+
         if ($syncResult -match "Transfer done") {
             Write-Host "$timeStamp - Sync complete."
         } else {
@@ -70,21 +72,25 @@ function Sync-Files {
 Sync-Files
 
 # Monitor for changes in the local directory
-$watcher = New-Object System.IO.FileSystemWatcher
-$watcher.Path = "$LOCAL_DIR"
-$watcher.IncludeSubdirectories = $true
-$watcher.EnableRaisingEvents = $true
-$watcher.NotifyFilter = [System.IO.NotifyFilters]'FileName, LastWrite'
+try {
+    $watcher = New-Object System.IO.FileSystemWatcher
+    $watcher.Path = "$LOCAL_DIR"
+    $watcher.IncludeSubdirectories = $true
+    $watcher.EnableRaisingEvents = $true
+    $watcher.NotifyFilter = [System.IO.NotifyFilters]'FileName, LastWrite'
 
-# Register an event to trigger sync on change
-Register-ObjectEvent $watcher Changed -Action { 
+    # Register an event to trigger sync on change
+    Register-ObjectEvent $watcher Changed -Action { 
+        $timeStamp = (Get-Date -Format "HH:mm:ss")
+        Write-Host "$timeStamp - Change detected. Syncing files..."
+        Sync-Files 
+    }
+
     $timeStamp = (Get-Date -Format "HH:mm:ss")
-    Write-Host "$timeStamp - Change detected. Syncing files..."
-    Sync-Files 
+    Write-Host "$timeStamp Monitoring $LOCAL_DIR for changes..."
+
+    # Keep the script running and display messages on screen
+    while ($true) { Start-Sleep -Seconds 2 }
+} catch {
+    Write-Host "ERROR: Failed to set up directory monitoring. Check the path or permissions." | Tee-Object -FilePath "$configDir\error.log" -Append
 }
-
-$timeStamp = (Get-Date -Format "HH:mm:ss")
-Write-Host "$timeStamp Monitoring $LOCAL_DIR for changes..."
-
-# Keep the script running and display messages on screen
-while ($true) { Start-Sleep -Seconds 2 }
