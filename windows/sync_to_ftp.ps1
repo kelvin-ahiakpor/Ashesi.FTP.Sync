@@ -8,6 +8,7 @@ $CONFIG_FILE = "$SCRIPTS_DIR\sync_config.conf"
 $LOG_FILE = "$SCRIPTS_DIR\sync_error.log"
 $KEY_FILE = "$SCRIPTS_DIR\sync.key"
 
+
 # Check if WinSCP is installed
 if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
     Write-Host "WinSCP is not installed. Please download it from https://winscp.net/eng/download.php"
@@ -168,39 +169,16 @@ function Sync-Files {
 # Run initial sync
 Sync-Files
 
-# Use FileSystemWatcher to monitor changes with improved event handling
+# Use FileSystemWatcher to monitor changes
 $watcher = New-Object System.IO.FileSystemWatcher
 $watcher.Path = $LOCAL_DIR
 $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
-$syncLock = $false
-$timer = $null
 
 $action = {
-    if (-not $syncLock) {
-        $syncLock = $true
-        
-        # Initialize a timer for debouncing
-        if ($timer) {
-            $timer.Stop()
-        }
-        
-        $timer = New-Object System.Timers.Timer
-        $timer.Interval = 1000 # 1 second debounce
-        $timer.AutoReset = $false
-        $timer.Enabled = $true
-        
-        Register-ObjectEvent $timer Elapsed -Action {
-            $timestamp = Get-Date -Format "HH:mm:ss"
-            Write-Host "$timestamp - Change detected. Syncing files..."
-            Sync-Files
-            $syncLock = $false
-            $timer.Dispose()
-        }
-        $timer.Start()
-    } else {
-        Write-Host "Sync already in progress. Skipping redundant events."
-    }
+    $timestamp = Get-Date -Format "HH:mm:ss"
+    Write-Host "$timestamp - Change detected. Syncing files..."
+    Sync-Files
 }
 
 Register-ObjectEvent $watcher "Created" -Action $action
