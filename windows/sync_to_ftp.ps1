@@ -21,6 +21,9 @@ if (Test-Path -Path "$configFile") {
     $FTP_PASS = Read-Host "Enter your FTP password" #-AsSecureString | ConvertFrom-SecureString
     $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\\path\\to\\lab)"
     $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/lab5)"
+    
+    # Convert remote directory path to use backslashes on Windows
+    $REMOTE_DIR = $REMOTE_DIR -replace "/", "\\"
 
     # Save the details to the configuration file
     @"
