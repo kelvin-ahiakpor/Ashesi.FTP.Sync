@@ -82,10 +82,19 @@ Here is what your remote directory looks like in Filezilla:
 - **macOS/Linux**: Ensure `lftp` and `fswatch` are installed and configured properly.
 - **Windows**: Verify that WinSCP is correctly installed to `C:\Program Files (x86)\WinSCP\WinSCP.com`.
 - **Mistake in initial setup**: Maybe you used the wrong password or path initially. To fix, run the following commands:
-```bash
-rm ~/Development/scripts/sync_config.conf
-./sync_to_ftp.sh
-```
+    
+    **MacOS**
+    ```bash
+    rm ~/Development/scripts/sync_config.conf
+    ./sync_to_ftp.sh
+    ```
+
+    **Windows**
+    ```powershell
+    Remove-Item -Path "$HOME\Development\scripts\sync_config.conf"
+    #Find the file script and run it again. You can do this manually or using commands:
+    cd <path_to_cloned_repo>\windows 
+    .\sync_to_ftp.ps1
 
 ## Notes
 
