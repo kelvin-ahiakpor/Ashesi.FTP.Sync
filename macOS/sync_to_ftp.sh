@@ -1,97 +1,101 @@
 #!/bin/bash
 
-# Constants
+# Ashesi Server Constants
 FTP_HOST="169.239.251.102"
 FTP_PORT=321
-CONFIG_FILE="${HOME}/Development/scripts/sync_config.conf"
-KEYCHAIN_NAME="ashesi_ftp_sync"
-LFTP_SCRIPT="/tmp/lftp_commands_$$"
-DEBOUNCE_DELAY=2
 
-# Check for required commands
-for cmd in lftp fswatch security; do
-    if ! command -v $cmd &> /dev/null; then
-        echo "Error: $cmd is required but not installed"
-        exit 1
-    fi
-done
+# Path to the configuration file within Development/scripts
+CONFIG_DIR="${HOME}/Development/scripts"
+CONFIG_FILE="${CONFIG_DIR}/sync_config.conf"
+LOCK_FILE="/tmp/sync_in_progress.lock"
 
-# Error handling
-set -e
-trap 'cleanup' EXIT INT TERM
+# Check if required tools are installed
+if ! command -v lftp &>/dev/null; then
+    echo "lftp is not installed. Please install it using 'brew install lftp' or 'sudo apt install lftp'."
+    exit 1
+fi
+if ! command -v fswatch &>/dev/null; then
+    echo "fswatch is not installed. Please install it using 'brew install fswatch' or 'sudo apt install fswatch'."
+    exit 1
+fi
+echo "All dependencies are installed. Proceeding with setup..."
 
-cleanup() {
-    echo "Cleaning up..."
-    rm -f "$LFTP_SCRIPT"
-    exit 0
-}
-
-# Directory check
-if [ ! -d "${HOME}/Development/scripts" ]; then
-    mkdir -p "${HOME}/Development/scripts"
+# Ensure the directory exists
+if [ ! -d "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+    echo "$(date '+%H:%M:%S') - Created directory $CONFIG_DIR for configuration file."
 fi
 
-# Config and credential handling
+# Function to store credentials in Keychain
+store_credentials() {
+    # Remove existing keychain entry if it exists
+    security delete-generic-password -a "$FTP_USER" -s "Ashesi FTP" &>/dev/null
+
+    # Store the new username and password
+    security add-generic-password -a "$FTP_USER" -s "Ashesi FTP" -w "$FTP_PASS"
+    echo "$(date '+%H:%M:%S') - Credentials stored securely in Keychain."
+}
+
+# Function to retrieve password from Keychain
+retrieve_password() {
+    security find-generic-password -a "$FTP_USER" -s "Ashesi FTP" -w 2>/dev/null
+}
+
+# Check if the configuration file exists
 if [ -f "$CONFIG_FILE" ]; then
+    # Load user-specific details from the config file
     source "$CONFIG_FILE"
-    CACHED_PASS=$(security find-generic-password -w -a "$FTP_USER" -s "$KEYCHAIN_NAME")
+    FTP_PASS=$(retrieve_password)
 else
-    echo "First time setup..."
+    # If the config file does not exist, create it and prompt for details
+    echo "$(date '+%H:%M:%S') - Configuration file not found. Let's create one."
+
+    # Prompt user for details
     read -p "Enter your Ashesi username: " FTP_USER
     read -sp "Enter your FTP password: " FTP_PASS
     echo
-    read -p "Enter local path: " LOCAL_DIR
-    read -p "Enter remote path: " REMOTE_DIR
-    
-    security add-generic-password -a "$FTP_USER" -s "$KEYCHAIN_NAME" -w "$FTP_PASS"
-    CACHED_PASS="$FTP_PASS"
-    
+    read -p "Enter the local path to your lab/project directory (e.g., /path/to/lab): " LOCAL_DIR
+    read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING): " REMOTE_DIR
+
+    # Store credentials in Keychain
+    store_credentials
+
+    # Save non-sensitive details to the configuration file
     cat <<EOL > "$CONFIG_FILE"
 FTP_USER="$FTP_USER"
 LOCAL_DIR="$LOCAL_DIR"
 REMOTE_DIR="$REMOTE_DIR"
 EOL
+
+    chmod 600 "$CONFIG_FILE" # Restrict access to the config file
+    echo "$(date '+%H:%M:%S') - Configuration saved. You are ready to sync!"
 fi
 
-# Create persistent LFTP script
-cat > "$LFTP_SCRIPT" << EOF
-set ssl:verify-certificate no
-set ftp:ssl-allow no
-set net:timeout 10
-set net:max-retries 3
-set net:reconnect-interval-base 5
-open -u "$FTP_USER","$CACHED_PASS" -p $FTP_PORT $FTP_HOST
-EOF
-
-# Sync function with persistent connection
+# Function to sync files using lftp
 sync_files() {
-    echo "$(date '+%H:%M:%S') - Syncing changes..."
-    lftp -f "$LFTP_SCRIPT" << EOF
-mirror -R --verbose --only-newer "$LOCAL_DIR" "$REMOTE_DIR"
+    echo "$(date '+%H:%M:%S') - Syncing files..."
+    find "$LOCAL_DIR" -type f -newermt "$(date -v-1S '+%Y-%m-%d %H:%M:%S')" | while read file; do
+        local relative_path="${file#$LOCAL_DIR/}"
+        lftp -u "$FTP_USER","$FTP_PASS" -p "$FTP_PORT" "$FTP_HOST" <<EOF
+put "$file" -o "$REMOTE_DIR/$relative_path"
+quit
 EOF
+        echo "$(date '+%H:%M:%S') - Synced file: $file"
+    done
+    echo "$(date '+%H:%M:%S') - Sync complete."
 }
 
-# Print configuration
-echo "========================="
-echo "FTP Host: $FTP_HOST"
-echo "Username: $FTP_USER"
-echo "Local Directory: $LOCAL_DIR"
-echo "Remote Directory: $REMOTE_DIR"
-echo "========================="
-
-# Initial sync
+# Run initial sync
 sync_files
 
-# Simple timestamp-based debouncing
-last_sync_time=0
-
-# Monitor changes
-fswatch -o "$LOCAL_DIR" | while read change; do
-    current_time=$(date +%s)
-    
-    if (( current_time - last_sync_time >= DEBOUNCE_DELAY )); then
-        echo "$(date '+%H:%M:%S') - Change detected, syncing..."
+# Use fswatch to monitor changes and run sync_files on change
+fswatch -r -l 0.5 "$LOCAL_DIR" | while read change; do
+    if [ ! -f "$LOCK_FILE" ]; then
+        touch "$LOCK_FILE"
+        echo "$(date '+%H:%M:%S') - Change detected."
         sync_files
-        last_sync_time=$current_time
+        rm "$LOCK_FILE"
+    else
+        echo "$(date '+%H:%M:%S') - Sync already in progress. Skipping..."
     fi
 done
