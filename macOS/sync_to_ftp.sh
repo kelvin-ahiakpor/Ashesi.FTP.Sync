@@ -18,7 +18,6 @@ if ! command -v fswatch &>/dev/null; then
     echo "fswatch is not installed. Please install it using 'brew install fswatch' or 'sudo apt install fswatch'."
     exit 1
 fi
-echo "All dependencies are installed. Proceeding with setup..."
 
 # Ensure the directory exists
 if [ ! -d "$CONFIG_DIR" ]; then
