@@ -27,14 +27,14 @@ fi
 encrypt() {
     local plaintext="$1"
     local key=$(cat "$KEY_FILE")
-    echo "$plaintext" | openssl enc -aes-256-cbc -a -salt -pass pass:"$key"
+    echo "$plaintext" | openssl enc -aes-256-cbc -a -pbkdf2 -salt -pass pass:"$key"
 }
 
 # Function to decrypt a string
 decrypt() {
     local ciphertext="$1"
     local key=$(cat "$KEY_FILE")
-    echo "$ciphertext" | openssl enc -aes-256-cbc -a -d -pass pass:"$key"
+    echo "$ciphertext" | openssl enc -aes-256-cbc -a -pbkdf2 -d -pass pass:"$key"
 }
 
 # Check if the configuration file exists
