@@ -8,6 +8,7 @@ $CONFIG_FILE = "$SCRIPTS_DIR\sync_config.conf"
 $LOG_FILE = "$SCRIPTS_DIR\sync_error.log"
 $KEY_FILE = "$SCRIPTS_DIR\sync.key"
 
+
 # Check if WinSCP is installed
 if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
     Write-Host "WinSCP is not installed. Please download it from https://winscp.net/eng/download.php"
@@ -23,7 +24,7 @@ if (!(Test-Path $SCRIPTS_DIR)) {
 function Write-ErrorLog {
     param($message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    "$timestamp - ERROR: $message" | Out-File -Append -FilePath $LOG_FILE
+    "$timestamp - $message" | Out-File -Append -FilePath $LOG_FILE
 }
 
 # Function to create encryption key
@@ -51,7 +52,8 @@ function Protect-Text {
         $secureString = ConvertTo-SecureString $Text -AsPlainText -Force
         $encrypted = ConvertFrom-SecureString $secureString -Key $Key
         return $encrypted
-    } catch {
+    }
+    catch {
         Write-ErrorLog "Encryption error: $_"
         throw
     }
@@ -66,7 +68,8 @@ function Unprotect-Text {
         $secureString = ConvertTo-SecureString $EncryptedText -Key $Key
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString)
         return [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-    } catch {
+    }
+    catch {
         Write-ErrorLog "Decryption error: $_"
         throw
     }
@@ -124,18 +127,6 @@ Write-Host "Remote Directory: $REMOTE_DIR"
 Write-Host "========================="
 Write-Host "Starting sync process..."
 
-# Function to check file readiness
-function Is-FileReady {
-    param([string]$file)
-    try {
-        $stream = [System.IO.File]::Open($file, 'Open', 'Read', 'None')
-        $stream.Close()
-        return $true
-    } catch {
-        return $false
-    }
-}
-
 # Function to sync files using WinSCP
 function Sync-Files {
     $timestamp = Get-Date -Format "HH:mm:ss"
@@ -148,17 +139,15 @@ function Sync-Files {
         $sessionOptions.PortNumber = $FTP_PORT
         $sessionOptions.UserName = $FTP_USER
         $sessionOptions.Password = $FTP_PASS
-        $sessionOptions.AddRawSettings("ReconnectTime", "10")
-        $sessionOptions.AddRawSettings("ReconnectAttempts", "3")
 
         $session = New-Object WinSCP.Session
-        $session.DebugLogPath = "$SCRIPTS_DIR\winscp_debug.log" # Enable detailed logs
         $session.Open($sessionOptions)
 
         $transferOptions = New-Object WinSCP.TransferOptions
         $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
 
-        $result = $session.SynchronizeDirectories([WinSCP.SynchronizationMode]::Remote, $LOCAL_DIR, $REMOTE_DIR, $false, $false, [WinSCP.SynchronizationCriteria]::ModificationTime, $transferOptions)
+        # Force synchronization by setting criteria to None
+        $result = $session.SynchronizeDirectories([WinSCP.SynchronizationMode]::Remote, $LOCAL_DIR, $REMOTE_DIR, $false, $false, [WinSCP.SynchronizationCriteria]::None, $transferOptions)
 
         foreach ($transfer in $result.Transfers) {
             Write-Host "$timestamp - Synced file: $($transfer.FileName)"
@@ -188,7 +177,6 @@ $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
 
 $action = {
-    Start-Sleep -Milliseconds 500 # Debounce to avoid overlapping triggers
     $timestamp = Get-Date -Format "HH:mm:ss"
     Write-Host "$timestamp - Change detected. Syncing files..."
     Sync-Files
