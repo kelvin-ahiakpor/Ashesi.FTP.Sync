@@ -40,9 +40,6 @@ else
     read -p "Enter the local path to your lab/project directory (e.g., C:/path/to/lab): " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING): " REMOTE_DIR
 
-    # Convert forward slashes to backslashes for Windows compatibility
-    LOCAL_DIR="${LOCAL_DIR//\//\\\\}"
-
     # Save details to the configuration file
     cat <<EOL > "$CONFIG_FILE"
 FTP_USER="$FTP_USER"
@@ -58,10 +55,9 @@ fi
 # Function to sync files using lftp
 sync_files() {
     echo "$(date '+%H:%M:%S') - Syncing files..."
-    # Find and sync files using lftp
     find "$LOCAL_DIR" -type f | while read file; do
         # Convert file path to relative path for upload
-        local relative_path="${file#${LOCAL_DIR}\\}"
+        local relative_path="${file#$LOCAL_DIR/}"
         lftp -u "$FTP_USER","$FTP_PASS" -p "$FTP_PORT" "$FTP_HOST" <<EOF
 put "$file" -o "$REMOTE_DIR/$relative_path"
 quit
