@@ -21,7 +21,33 @@ Watch this [video](https://youtube.com)
 
 ### For Windows
 
-- **WinSCP**: Download and install [WinSCP](https://winscp.net/eng/download.php) for secure file transfer.
+- **Scoop and Git Bash**:
+  1. Install [Scoop](https://scoop.sh/):
+     - Open PowerShell as Administrator.
+     - Run:
+       ```powershell
+       Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+       iwr -useb get.scoop.sh | iex
+       ```
+     - Verify installation:
+       ```powershell
+       scoop --version
+       ```
+  2. Use Scoop to install the necessary tools:
+     ```powershell
+     scoop install lftp
+     scoop install watchman
+     ```
+  3. Install [Git for Windows](https://git-scm.com/) to get Git Bash.
+
+  4. Use Git Bash to run `.sh` scripts:
+     ```bash
+     cd /path/to/Ashesi.FTP.Sync/macOS
+     chmod +x sync_to_ftp.sh
+     ./sync_to_ftp.sh
+     ```
+
+---
 
 ## Setup and Configuration
 
@@ -39,6 +65,8 @@ Watch this [video](https://youtube.com)
 
     These details will be saved in `sync_config.conf` within this folder, so everything stays organized.
 
+---
+
 ## Usage
 
 - **macOS/Linux**: Run the `sync_to_ftp.sh` file by navigating to its directory and executing:
@@ -48,19 +76,14 @@ Watch this [video](https://youtube.com)
     ./sync_to_ftp.sh #strictly for your first run!
     ```
 
-  * **Running after setup**: When you are done setting up the service will start running. But assuming you stop the service and start again use the following command:
+  * **Running after setup**: When you are done setting up, the service will start running. But assuming you stop the service and start again, use the following command:
     ```bash
     ./sync_to_ftp.sh & #subsequent runs can be in background with the added &
     ```
 
-- **Windows**: Run the `sync_to_ftp.ps1` PowerShell script in this path \Ashesi.FTP.Sync\windows
+- **Windows (Git Bash)**: Use Git Bash to run the `sync_to_ftp.sh` file after installing `lftp` and `watchman` using Scoop.
 
-    **Before Running on Windows**:
-    - Open PowerShell as Administrator.
-    - Allow scripts to run by executing:
-        ```powershell
-        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
-        ```
+---
 
 ## Example Configuration
 
@@ -73,16 +96,14 @@ LOCAL_DIR="/path/to/local/directory" # Use format C:\path\to\directory for Windo
 REMOTE_DIR="/path/to/remote/directory" # Do not put quotes ("" or '' around your path)
 ```
 
-## Help with images
-Here is what your remote directory looks like in Filezilla:
-![Filezilla1](https://github.com/kelvin-ahiakpor/kelvin-ahiakpor.github.io/blob/main/images/ftpsync1.png)
+---
 
 ## Troubleshooting
 
 - **macOS/Linux**: Ensure `lftp` and `fswatch` are installed and configured properly.
-- **Windows**: Verify that WinSCP is correctly installed to `C:\Program Files (x86)\WinSCP\WinSCP.com`.
+- **Windows**: Verify that Scoop is installed correctly and added to PATH.
 - **Mistake in initial setup**: Maybe you used the wrong password or path initially. To fix, run the following commands:
-    
+
     **MacOS**
     ```bash
     rm ~/Development/scripts/sync_config.conf
@@ -90,23 +111,19 @@ Here is what your remote directory looks like in Filezilla:
     ```
 
     **Windows**
-    ```powershell
-    Remove-Item -Path "$HOME\Development\scripts\sync_config.conf"
+    ```bash
+    rm $HOME/Development/scripts/sync_config.conf
+    ./sync_to_ftp.sh
     ```
 
-    Next, Find the script and run it again. You can do this manually or using commands:
-
-    ```powershell
-    cd <path_to_cloned_repo>\windows 
-    .\sync_to_ftp.ps1
-    ```
+---
 
 ## Notes
 
 This script is designed to assist in automating the sync process for WebTech projects and assignments on the Ashesi server.
 While using on macOS, I realized that after about an hour, the browser stops retrieving the updated files. 
 It seems like a browser caching problem. To fix, do a 'hard refresh' using  **Ctrl + F5** or **Cmd + Shift + R**.
-In other cases you may want to restart your browser or laptop (quite undesirable, so try the hard refresh many times). 
+In other cases, you may want to restart your browser or laptop (quite undesirable, so try the hard refresh many times). 
 
 **Extra**:
 On macOS this script is run as a job. Here is how to maneuver:
