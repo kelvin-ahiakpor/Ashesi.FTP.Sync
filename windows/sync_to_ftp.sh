@@ -5,9 +5,9 @@ FTP_HOST="169.239.251.102"
 FTP_PORT=321
 
 # Path to the configuration file
-CONFIG_DIR="$HOME\\Development\\scripts"
-CONFIG_FILE="${CONFIG_DIR}\\sync_config.conf"
-LOCK_FILE="${TEMP}\\sync_in_progress.lock"
+CONFIG_DIR="$HOME/Development/scripts"
+CONFIG_FILE="${CONFIG_DIR}/sync_config.conf"
+LOCK_FILE="${TEMP}/sync_in_progress.lock"
 
 # Check if required tools are installed
 if ! command -v lftp &>/dev/null; then
@@ -37,11 +37,11 @@ else
     read -p "Enter your Ashesi username: " FTP_USER
     read -sp "Enter your FTP password: " FTP_PASS
     echo
-    read -p "Enter the local path to your lab/project directory (e.g., C:\\path\\to\\lab): " LOCAL_DIR
+    read -p "Enter the local path to your lab/project directory (e.g., C:/path/to/lab): " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING): " REMOTE_DIR
 
-    # Replace single backslashes with double backslashes
-    LOCAL_DIR="${LOCAL_DIR//\\/\\\\}"
+    # Convert forward slashes to backslashes for Windows compatibility
+    LOCAL_DIR="${LOCAL_DIR//\//\\\\}"
 
     # Save details to the configuration file
     cat <<EOL > "$CONFIG_FILE"
@@ -58,8 +58,10 @@ fi
 # Function to sync files using lftp
 sync_files() {
     echo "$(date '+%H:%M:%S') - Syncing files..."
-    find "$LOCAL_DIR" -type f -newermt "$(date -d '1 second ago' '+%Y-%m-%d %H:%M:%S')" | while read file; do
-        local relative_path="${file#$LOCAL_DIR\\}"
+    # Find and sync files using lftp
+    find "$LOCAL_DIR" -type f | while read file; do
+        # Convert file path to relative path for upload
+        local relative_path="${file#${LOCAL_DIR}\\}"
         lftp -u "$FTP_USER","$FTP_PASS" -p "$FTP_PORT" "$FTP_HOST" <<EOF
 put "$file" -o "$REMOTE_DIR/$relative_path"
 quit
