@@ -29,7 +29,15 @@ fi
 if [ -f "$CONFIG_FILE" ]; then
     # Load user-specific details from the config file
     source "$CONFIG_FILE"
+
+    # Convert LOCAL_DIR to Unix-style path
     LOCAL_DIR=$(cygpath -u "$LOCAL_DIR")
+
+    # Verify the directory exists
+    if [ ! -d "$LOCAL_DIR" ]; then
+        echo "$(date '+%H:%M:%S') - Error: Local directory does not exist: $LOCAL_DIR"
+        exit 1
+    fi
 else
     # If the config file does not exist, create it and prompt for details
     echo "$(date '+%H:%M:%S') - Configuration file not found. Let's create one."
@@ -41,8 +49,14 @@ else
     read -p "Enter the local path to your lab/project directory (e.g., C:\\path\\to\\lab): " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING): " REMOTE_DIR
 
-    # Convert local directory to Unix-style path
+    # Convert LOCAL_DIR to Unix-style path
     LOCAL_DIR=$(cygpath -u "$LOCAL_DIR")
+
+    # Verify the directory exists
+    if [ ! -d "$LOCAL_DIR" ]; then
+        echo "$(date '+%H:%M:%S') - Error: Local directory does not exist: $LOCAL_DIR"
+        exit 1
+    fi
 
     # Save details to the configuration file
     cat <<EOL > "$CONFIG_FILE"
@@ -55,6 +69,7 @@ EOL
     chmod 600 "$CONFIG_FILE" # Restrict access to the config file
     echo "$(date '+%H:%M:%S') - Configuration saved. You are ready to sync!"
 fi
+
 
 # Function to sync files using lftp
 sync_files() {
