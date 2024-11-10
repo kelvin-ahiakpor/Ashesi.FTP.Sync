@@ -127,33 +127,20 @@ $script:isProcessing = $false
 $script:lastSyncTime = [DateTime]::MinValue
 $script:syncLock = New-Object System.Object
 
+
+# sync files
 function Sync-Files {
-    param(
-        [int]$debounceSeconds = 2
-    )
-    
     $timestamp = Get-Date -Format "HH:mm:ss"
-    
-    # Use a lock to prevent multiple simultaneous syncs
-    [System.Threading.Monitor]::Enter($script:syncLock)
+    Write-Host "$timestamp - Starting sync..."
+
     try {
-        # Check if we've synced recently
-        $timeSinceLastSync = (Get-Date) - $script:lastSyncTime
-        if ($timeSinceLastSync.TotalSeconds -lt $debounceSeconds) {
-            Write-Host "$timestamp - Skipping sync, too soon since last sync"
-            return
-        }
-        
-        Write-Host "$timestamp - Starting batch sync..."
-        $script:isProcessing = $true
-        
         $sessionOptions = New-Object WinSCP.SessionOptions
         $sessionOptions.Protocol = [WinSCP.Protocol]::Ftp
         $sessionOptions.HostName = $FTP_HOST
         $sessionOptions.PortNumber = $FTP_PORT
         $sessionOptions.UserName = $FTP_USER
         $sessionOptions.Password = $FTP_PASS
-        
+
         $session = New-Object WinSCP.Session
         
         try {
@@ -161,9 +148,6 @@ function Sync-Files {
             
             $transferOptions = New-Object WinSCP.TransferOptions
             $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
-            
-            # Clear the queue and perform sync
-            $changeQueue.Clear()
             
             $result = $session.SynchronizeDirectories(
                 [WinSCP.SynchronizationMode]::Remote,
@@ -183,9 +167,6 @@ function Sync-Files {
                 Write-Host "$timestamp - No new files to sync."
             }
             
-            # Update last sync time
-            $script:lastSyncTime = Get-Date
-            
         } catch {
             Write-Host "Error during sync: $_"
             Write-ErrorLog "Sync error: $_"
@@ -194,63 +175,43 @@ function Sync-Files {
                 $session.Dispose()
             }
         }
-    } finally {
-        $script:isProcessing = $false
-        [System.Threading.Monitor]::Exit($script:syncLock)
+    } catch {
+        Write-Host "Error setting up sync: $_"
+        Write-ErrorLog "Setup error: $_"
     }
 }
 
-# Modified file system watcher implementation
+# Simple file watcher setup
 $watcher = New-Object System.IO.FileSystemWatcher
 $watcher.Path = $LOCAL_DIR
 $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
 
+$lastSync = [DateTime]::Now
+$debounceTime = 2 # seconds
+
 # Create a single action for all events
 $action = {
     param($source, $e)
     
-    $timestamp = Get-Date -Format "HH:mm:ss"
-    $changeType = $e.ChangeType
-    $fullPath = $e.FullPath
-    
-    Write-Host "$timestamp - $changeType detected for $fullPath"
-    
-    # Add change to queue
-    $script:changeQueue.Enqueue(@{
-        Time = Get-Date
-        Type = $changeType
-        Path = $fullPath
-    })
-    
-    # Start a new job for processing if not already processing
-    if (-not $script:isProcessing) {
-        Start-Job -ScriptBlock {
-            # Wait for additional changes
-            Start-Sleep -Seconds 2
-            
-            # Process all queued changes in one batch
-            Sync-Files -debounceSeconds 2
-        } | Wait-Job | Remove-Job
+    $now = [DateTime]::Now
+    if (($now - $script:lastSync).TotalSeconds -ge $debounceTime) {
+        $script:lastSync = $now
+        Sync-Files
     }
 }
 
-# Register for all event types with the same action
-$handlers = @(
-    Register-ObjectEvent $watcher "Created" -Action $action
-    Register-ObjectEvent $watcher "Changed" -Action $action
-    Register-ObjectEvent $watcher "Deleted" -Action $action
-    Register-ObjectEvent $watcher "Renamed" -Action $action
-)
+# Register for all events
+Register-ObjectEvent $watcher "Created" -Action $action
+Register-ObjectEvent $watcher "Changed" -Action $action
+Register-ObjectEvent $watcher "Deleted" -Action $action
+Register-ObjectEvent $watcher "Renamed" -Action $action
 
+# Initial sync and keep script running
+Write-Host "Starting initial sync..."
+Sync-Files
 Write-Host "Watching for changes. Press Ctrl+C to exit."
 
-try {
-    while ($true) { 
-        Start-Sleep -Seconds 1
-    }
-} finally {
-    # Cleanup
-    $handlers | ForEach-Object { Unregister-Event $_.Id }
-    $watcher.Dispose()
+while ($true) { 
+    Start-Sleep -Seconds 1 
 }
