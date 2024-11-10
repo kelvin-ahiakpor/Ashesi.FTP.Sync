@@ -29,10 +29,6 @@ Watch this [video](https://youtube.com)
        Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
        iwr -useb get.scoop.sh | iex
        ```
-     - Verify installation:
-       ```powershell
-       scoop --version
-       ```
   2. Use Scoop to install the necessary tools:
      ```powershell
      scoop install lftp
@@ -42,7 +38,7 @@ Watch this [video](https://youtube.com)
 
   4. Use Git Bash to run `.sh` scripts:
      ```bash
-     cd /path/to/Ashesi.FTP.Sync/macOS
+     cd /path/to/Ashesi.FTP.Sync/macOS #you can also right click, more options, open Git Bash here.
      chmod +x sync_to_ftp.sh
      ./sync_to_ftp.sh
      ```
