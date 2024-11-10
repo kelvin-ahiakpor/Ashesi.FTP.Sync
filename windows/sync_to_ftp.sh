@@ -40,6 +40,9 @@ else
     read -p "Enter the local path to your lab/project directory (e.g., C:\\path\\to\\lab): " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING): " REMOTE_DIR
 
+    # Replace single backslashes with double backslashes
+    LOCAL_DIR="${LOCAL_DIR//\\/\\\\}"
+
     # Save details to the configuration file
     cat <<EOL > "$CONFIG_FILE"
 FTP_USER="$FTP_USER"
