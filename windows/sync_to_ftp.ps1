@@ -8,16 +8,10 @@ $CONFIG_FILE = "$SCRIPTS_DIR\sync_config.conf"
 $LOG_FILE = "$SCRIPTS_DIR\sync_error.log"
 $KEY_FILE = "$SCRIPTS_DIR\sync.key"
 
-
-# Check if WinSCP is installed
-if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
-    Write-Host "WinSCP is not installed. Please download it from https://winscp.net/eng/download.php"
-    exit 1
-}
-
 # Ensure the directory exists
 if (!(Test-Path $SCRIPTS_DIR)) {
     New-Item -ItemType Directory -Path $SCRIPTS_DIR | Out-Null
+    Write-Host "Created directory $SCRIPTS_DIR for configuration file."
 }
 
 # Function to write to error log
@@ -94,7 +88,7 @@ if (Test-Path $CONFIG_FILE) {
     $REMOTE_DIR = $config.REMOTE_DIR
 } else {
     # If the config file does not exist, create it and prompt for details
-    Write-Host "Configuration file not found. Let's create one."
+    Write-Host "Configuration file not found. Creating a new one..."
 
     # Prompt user for details
     $FTP_USER = Read-Host "Enter your Ashesi username"
@@ -114,7 +108,7 @@ if (Test-Path $CONFIG_FILE) {
 
     $config | ConvertTo-Json | Set-Content -Path $CONFIG_FILE
 
-    Write-Host "Configuration saved. You're ready to sync! No details required next time."
+    Write-Host "Configuration saved to $CONFIG_FILE. You won't be asked for these details next time."
 }
 
 # Confirm details
@@ -146,8 +140,7 @@ function Sync-Files {
         $transferOptions = New-Object WinSCP.TransferOptions
         $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
 
-        # Force synchronization by setting criteria to None
-        $result = $session.SynchronizeDirectories([WinSCP.SynchronizationMode]::Remote, $LOCAL_DIR, $REMOTE_DIR, $false, $false, [WinSCP.SynchronizationCriteria]::None, $transferOptions)
+        $result = $session.SynchronizeDirectories([WinSCP.SynchronizationMode]::Remote, $LOCAL_DIR, $REMOTE_DIR, $false, $false, [WinSCP.SynchronizationCriteria]::Time, $transferOptions)
 
         foreach ($transfer in $result.Transfers) {
             Write-Host "$timestamp - Synced file: $($transfer.FileName)"
@@ -188,4 +181,4 @@ Register-ObjectEvent $watcher "Deleted" -Action $action
 Register-ObjectEvent $watcher "Renamed" -Action $action
 
 Write-Host "Watching for changes. Press Ctrl+C to exit."
-while ($true) { Start-Sleep -Seconds 0.2 }
+while ($true) { Start-Sleep -Seconds 1 }
