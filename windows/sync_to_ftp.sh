@@ -29,6 +29,7 @@ fi
 if [ -f "$CONFIG_FILE" ]; then
     # Load user-specific details from the config file
     source "$CONFIG_FILE"
+    LOCAL_DIR=$(cygpath -u "$LOCAL_DIR")
 else
     # If the config file does not exist, create it and prompt for details
     echo "$(date '+%H:%M:%S') - Configuration file not found. Let's create one."
