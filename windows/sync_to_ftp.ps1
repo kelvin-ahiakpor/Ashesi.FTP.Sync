@@ -41,7 +41,9 @@ function Sync-Files {
         $sessionOptions.UserName = $FTP_USER
         $sessionOptions.Password = $FTP_PASS
 
+        # Enable session logging
         $session = New-Object WinSCP.Session
+        $session.SessionLogPath = "$env:USERPROFILE\Development\scripts\ftp_session.log"
         $session.Open($sessionOptions)
 
         $transferOptions = New-Object WinSCP.TransferOptions
@@ -69,6 +71,7 @@ function Sync-Files {
         }
     }
 }
+
 
 # Initial setup: Load or create configuration
 if (Test-Path $CONFIG_FILE) {
