@@ -2,100 +2,113 @@
 $FTP_HOST = "169.239.251.102"
 $FTP_PORT = 321
 
-# Load the WinSCP .NET Assembly
-Add-Type -Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll"
+# Path to the configuration file within Development/scripts
+$SCRIPTS_DIR = "$env:USERPROFILE\Development\scripts"
+$CONFIG_FILE = "$SCRIPTS_DIR\sync_config.conf"
+$LOG_FILE = "$SCRIPTS_DIR\sync_error.log"
+$KEY_FILE = "$SCRIPTS_DIR\sync.key"
 
-# Path to the configuration file
-$CONFIG_DIR = "$env:USERPROFILE\Development\scripts"
-$CONFIG_FILE = "$CONFIG_DIR\sync_config.conf"
+# Ensure the directory exists
+if (!(Test-Path $SCRIPTS_DIR)) {
+    New-Item -ItemType Directory -Path $SCRIPTS_DIR | Out-Null
+    Write-Host "Created directory $SCRIPTS_DIR for configuration file."
+}
 
-# Ensure the configuration directory exists
-if (!(Test-Path $CONFIG_DIR)) {
-    New-Item -ItemType Directory -Path $CONFIG_DIR | Out-Null
-    Write-Host "$(Get-Date -Format HH:mm:ss) - Created directory $CONFIG_DIR for configuration file."
+# Function to write to error log
+function Write-ErrorLog {
+    param($message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$timestamp - $message" | Out-File -Append -FilePath $LOG_FILE
+}
+
+# Function to create encryption key
+function New-EncryptionKey {
+    $Key = New-Object Byte[] 32
+    [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($Key)
+    $Key | Set-Content $KEY_FILE -Encoding Byte
+    return $Key
+}
+
+# Function to get encryption key
+function Get-EncryptionKey {
+    if (!(Test-Path $KEY_FILE)) {
+        return New-EncryptionKey
+    }
+    return Get-Content $KEY_FILE -Encoding Byte
 }
 
 # Function to encrypt text
 function Protect-Text {
     param([string]$Text)
-    $secureString = ConvertTo-SecureString $Text -AsPlainText -Force
-    return $secureString | ConvertFrom-SecureString
+    
+    try {
+        $Key = Get-EncryptionKey
+        $secureString = ConvertTo-SecureString $Text -AsPlainText -Force
+        $encrypted = ConvertFrom-SecureString $secureString -Key $Key
+        return $encrypted
+    }
+    catch {
+        Write-ErrorLog "Encryption error: $_"
+        throw
+    }
 }
 
 # Function to decrypt text
 function Unprotect-Text {
     param([string]$EncryptedText)
-    $secureString = $EncryptedText | ConvertTo-SecureString
-    return [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString))
-}
-
-# Function to sync files using WinSCP
-function Sync-Files {
-    param($FTP_USER, $FTP_PASS, $LOCAL_DIR, $REMOTE_DIR)
-    Write-Host "$(Get-Date -Format HH:mm:ss) - Starting sync..."
+    
     try {
-        $sessionOptions = New-Object WinSCP.SessionOptions
-        $sessionOptions.Protocol = [WinSCP.Protocol]::Ftp
-        $sessionOptions.HostName = $FTP_HOST
-        $sessionOptions.PortNumber = $FTP_PORT
-        $sessionOptions.UserName = $FTP_USER
-        $sessionOptions.Password = $FTP_PASS
-
-        # Enable session logging
-        $session = New-Object WinSCP.Session
-        $session.SessionLogPath = "$env:USERPROFILE\Development\scripts\ftp_session.log"
-        $session.Open($sessionOptions)
-
-        $transferOptions = New-Object WinSCP.TransferOptions
-        $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
-
-        $result = $session.SynchronizeDirectories(
-            [WinSCP.SynchronizationMode]::Remote,
-            $LOCAL_DIR,
-            $REMOTE_DIR,
-            $false, $false, [WinSCP.SynchronizationCriteria]::Time, $transferOptions
-        )
-
-        foreach ($transfer in $result.Transfers) {
-            Write-Host "$(Get-Date -Format HH:mm:ss) - Synced file: $($transfer.FileName)"
-        }
-
-        if ($result.Transfers.Count -eq 0) {
-            Write-Host "$(Get-Date -Format HH:mm:ss) - No new files to sync."
-        }
-    } catch {
-        Write-Host "Error during sync: $_"
-    } finally {
-        if ($session) {
-            $session.Dispose()
-        }
+        $Key = Get-EncryptionKey
+        $secureString = ConvertTo-SecureString $EncryptedText -Key $Key
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString)
+        return [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+    }
+    catch {
+        Write-ErrorLog "Decryption error: $_"
+        throw
     }
 }
 
+# Check if WinSCP .NET assembly is available
+try {
+    Add-Type -Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll"
+} catch {
+    Write-Host "Please install WinSCP and ensure WinSCPnet.dll is available"
+    Write-ErrorLog "WinSCP .NET assembly not found: $_"
+    exit 1
+}
 
-# Initial setup: Load or create configuration
+# Check if the configuration file exists
 if (Test-Path $CONFIG_FILE) {
+    # Load user-specific details from the config file
     $config = Get-Content $CONFIG_FILE | ConvertFrom-Json
     $FTP_USER = $config.FTP_USER
     $FTP_PASS = Unprotect-Text $config.FTP_PASS
     $LOCAL_DIR = $config.LOCAL_DIR
     $REMOTE_DIR = $config.REMOTE_DIR
 } else {
+    # If the config file does not exist, create it and prompt for details
     Write-Host "Configuration file not found. Creating a new one..."
 
+    # Prompt user for details
     $FTP_USER = Read-Host "Enter your Ashesi username"
-    $FTP_PASS = Protect-Text (Read-Host "Enter your FTP password" -AsSecureString)
+    $FTP_PASS = Read-Host "Enter your FTP password" -AsSecureString
+    $FTP_PASS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($FTP_PASS))
     $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\path\to\lab)"
     $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
 
+    # Encrypt password and save configuration
+    $encryptedPass = Protect-Text $FTP_PASS
     $config = @{
         FTP_USER = $FTP_USER
-        FTP_PASS = $FTP_PASS
+        FTP_PASS = $encryptedPass
         LOCAL_DIR = $LOCAL_DIR
         REMOTE_DIR = $REMOTE_DIR
     }
+
     $config | ConvertTo-Json | Set-Content -Path $CONFIG_FILE
-    Write-Host "Configuration saved to $CONFIG_FILE."
+
+    Write-Host "Configuration saved to $CONFIG_FILE. You won't be asked for these details next time."
 }
 
 # Confirm details
@@ -106,22 +119,138 @@ Write-Host "Username: $FTP_USER"
 Write-Host "Local Directory: $LOCAL_DIR"
 Write-Host "Remote Directory: $REMOTE_DIR"
 Write-Host "========================="
+Write-Host "Starting sync process..."
 
-# Run initial sync
-Sync-Files -FTP_USER $FTP_USER -FTP_PASS (Unprotect-Text $FTP_PASS) -LOCAL_DIR $LOCAL_DIR -REMOTE_DIR $REMOTE_DIR
+# Add a synchronized queue for change events
+$script:changeQueue = [System.Collections.Queue]::Synchronized([System.Collections.Queue]::new())
+$script:isProcessing = $false
+$script:lastSyncTime = [DateTime]::MinValue
+$script:syncLock = New-Object System.Object
 
-# Use FileSystemWatcher to monitor changes
+function Sync-Files {
+    param(
+        [int]$debounceSeconds = 2
+    )
+    
+    $timestamp = Get-Date -Format "HH:mm:ss"
+    
+    # Use a lock to prevent multiple simultaneous syncs
+    [System.Threading.Monitor]::Enter($script:syncLock)
+    try {
+        # Check if we've synced recently
+        $timeSinceLastSync = (Get-Date) - $script:lastSyncTime
+        if ($timeSinceLastSync.TotalSeconds -lt $debounceSeconds) {
+            Write-Host "$timestamp - Skipping sync, too soon since last sync"
+            return
+        }
+        
+        Write-Host "$timestamp - Starting batch sync..."
+        $script:isProcessing = $true
+        
+        $sessionOptions = New-Object WinSCP.SessionOptions
+        $sessionOptions.Protocol = [WinSCP.Protocol]::Ftp
+        $sessionOptions.HostName = $FTP_HOST
+        $sessionOptions.PortNumber = $FTP_PORT
+        $sessionOptions.UserName = $FTP_USER
+        $sessionOptions.Password = $FTP_PASS
+        
+        $session = New-Object WinSCP.Session
+        
+        try {
+            $session.Open($sessionOptions)
+            
+            $transferOptions = New-Object WinSCP.TransferOptions
+            $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
+            
+            # Clear the queue and perform sync
+            $changeQueue.Clear()
+            
+            $result = $session.SynchronizeDirectories(
+                [WinSCP.SynchronizationMode]::Remote,
+                $LOCAL_DIR,
+                $REMOTE_DIR,
+                $false,
+                $false,
+                [WinSCP.SynchronizationCriteria]::Time,
+                $transferOptions
+            )
+            
+            foreach ($transfer in $result.Transfers) {
+                Write-Host "$timestamp - Synced file: $($transfer.FileName)"
+            }
+            
+            if ($result.Transfers.Count -eq 0) {
+                Write-Host "$timestamp - No new files to sync."
+            }
+            
+            # Update last sync time
+            $script:lastSyncTime = Get-Date
+            
+        } catch {
+            Write-Host "Error during sync: $_"
+            Write-ErrorLog "Sync error: $_"
+        } finally {
+            if ($session) {
+                $session.Dispose()
+            }
+        }
+    } finally {
+        $script:isProcessing = $false
+        [System.Threading.Monitor]::Exit($script:syncLock)
+    }
+}
+
+# Modified file system watcher implementation
 $watcher = New-Object System.IO.FileSystemWatcher
 $watcher.Path = $LOCAL_DIR
 $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
 
+# Create a single action for all events
 $action = {
-    Write-Host "$(Get-Date -Format HH:mm:ss) - Change detected. Syncing files..."
-    Sync-Files -FTP_USER $FTP_USER -FTP_PASS (Unprotect-Text $FTP_PASS) -LOCAL_DIR $LOCAL_DIR -REMOTE_DIR $REMOTE_DIR
+    param($source, $e)
+    
+    $timestamp = Get-Date -Format "HH:mm:ss"
+    $changeType = $e.ChangeType
+    $fullPath = $e.FullPath
+    
+    Write-Host "$timestamp - $changeType detected for $fullPath"
+    
+    # Add change to queue
+    $script:changeQueue.Enqueue(@{
+        Time = Get-Date
+        Type = $changeType
+        Path = $fullPath
+    })
+    
+    # Start a new job for processing if not already processing
+    if (-not $script:isProcessing) {
+        Start-Job -ScriptBlock {
+            # Wait for additional changes
+            Start-Sleep -Seconds 2
+            
+            # Process all queued changes in one batch
+            Sync-Files -debounceSeconds 2
+        } | Wait-Job | Remove-Job
+    }
 }
 
-Register-ObjectEvent $watcher "Changed" -Action $action
+# Register for all event types with the same action
+$handlers = @(
+    Register-ObjectEvent $watcher "Created" -Action $action
+    Register-ObjectEvent $watcher "Changed" -Action $action
+    Register-ObjectEvent $watcher "Deleted" -Action $action
+    Register-ObjectEvent $watcher "Renamed" -Action $action
+)
 
 Write-Host "Watching for changes. Press Ctrl+C to exit."
-while ($true) { Start-Sleep -Seconds 1 }
+
+try {
+    while ($true) { 
+        Start-Sleep -Seconds 1
+    }
+} finally {
+    # Cleanup
+    $handlers | ForEach-Object { Unregister-Event $_.Id }
+    $watcher.Dispose()
+}
