@@ -12,7 +12,7 @@ $KEY_FILE = "$SCRIPTS_DIR\sync.key"
 $script:lastSyncTime = [DateTime]::MinValue
 $script:changeQueue = @{}
 $script:syncInProgress = $false
-$SYNC_DELAY = 1 # Seconds to wait after detecting changes before syncing
+$SYNC_DELAY = 2 # Seconds to wait after detecting changes before syncing
 
 # Check if WinSCP is installed
 if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
@@ -40,8 +40,102 @@ function Write-SuccessLog {
     Write-Host "$timestamp - SUCCESS: $message" -ForegroundColor Green
 }
 
-# Encryption functions remain the same as in your original script
-# [Previous encryption-related functions here]
+# Function to create encryption key
+function New-EncryptionKey {
+    $Key = New-Object Byte[] 32
+    [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($Key)
+    $Key | Set-Content $KEY_FILE -Encoding Byte
+    return $Key
+}
+
+# Function to get encryption key
+function Get-EncryptionKey {
+    if (!(Test-Path $KEY_FILE)) {
+        return New-EncryptionKey
+    }
+    return Get-Content $KEY_FILE -Encoding Byte
+}
+
+# Function to encrypt text
+function Protect-Text {
+    param([string]$Text)
+    
+    try {
+        $Key = Get-EncryptionKey
+        $secureString = ConvertTo-SecureString $Text -AsPlainText -Force
+        $encrypted = ConvertFrom-SecureString $secureString -Key $Key
+        return $encrypted
+    }
+    catch {
+        Write-ErrorLog "Encryption error: $_"
+        throw
+    }
+}
+
+# Function to decrypt text
+function Unprotect-Text {
+    param([string]$EncryptedText)
+    
+    try {
+        $Key = Get-EncryptionKey
+        $secureString = ConvertTo-SecureString $EncryptedText -Key $Key
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString)
+        return [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+    }
+    catch {
+        Write-ErrorLog "Decryption error: $_"
+        throw
+    }
+}
+
+# Check if WinSCP .NET assembly is available
+try {
+    Add-Type -Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll"
+} catch {
+    Write-Host "Please install WinSCP and ensure WinSCPnet.dll is available"
+    Write-ErrorLog "WinSCP .NET assembly not found: $_"
+    exit 1
+}
+
+# Load or create configuration
+try {
+    # Check if the configuration file exists
+    if (Test-Path $CONFIG_FILE) {
+        # Load user-specific details from the config file
+        $config = Get-Content $CONFIG_FILE | ConvertFrom-Json
+        $script:FTP_USER = $config.FTP_USER
+        $script:FTP_PASS = Unprotect-Text $config.FTP_PASS
+        $script:LOCAL_DIR = $config.LOCAL_DIR
+        $script:REMOTE_DIR = $config.REMOTE_DIR
+    } else {
+        # If the config file does not exist, create it and prompt for details
+        Write-Host "Configuration file not found. Let's create one."
+
+        # Prompt user for details
+        $script:FTP_USER = Read-Host "Enter your Ashesi username"
+        $securePass = Read-Host "Enter your FTP password" -AsSecureString
+        $script:FTP_PASS = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+            [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass))
+        $script:LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\path\to\lab)"
+        $script:REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
+
+        # Encrypt password and save configuration
+        $encryptedPass = Protect-Text $FTP_PASS
+        $config = @{
+            FTP_USER = $FTP_USER
+            FTP_PASS = $encryptedPass
+            LOCAL_DIR = $LOCAL_DIR
+            REMOTE_DIR = $REMOTE_DIR
+        }
+
+        $config | ConvertTo-Json | Set-Content -Path $CONFIG_FILE
+        Write-SuccessLog "Configuration saved successfully!"
+    }
+}
+catch {
+    Write-ErrorLog "Failed to load or create configuration: $_"
+    exit 1
+}
 
 # Function to verify FTP connection
 function Test-FTPConnection {
@@ -177,8 +271,14 @@ $action = {
 
 # Main script execution
 try {
-    # Load configuration and validate connection
-    # [Previous configuration loading code here]
+    # Confirm details
+    Write-Host "`n========================="
+    Write-Host "FTP Host: $FTP_HOST"
+    Write-Host "Port: $FTP_PORT"
+    Write-Host "Username: $FTP_USER"
+    Write-Host "Local Directory: $LOCAL_DIR"
+    Write-Host "Remote Directory: $REMOTE_DIR"
+    Write-Host "=========================`n"
 
     # Test FTP connection before starting
     if (-not (Test-FTPConnection)) {
