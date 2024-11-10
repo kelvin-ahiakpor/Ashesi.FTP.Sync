@@ -15,7 +15,6 @@ if (-not (Get-Command "WinSCP.com" -ErrorAction SilentlyContinue)) {
 # Ensure the directory exists
 if (-not (Test-Path -Path $CONFIG_DIR)) {
     New-Item -ItemType Directory -Path $CONFIG_DIR
-    Write-Host "$(Get-Date -Format 'HH:mm:ss') - Created directory $CONFIG_DIR for configuration file."
 }
 
 # Function to read configuration
@@ -27,7 +26,7 @@ function Read-Config {
         }
         return @($config)
     } else {
-        Write-Host "Configuration file not found! Please run the initial setup."
+        Write-Host "Configuration file not found! Let's create one."
         exit 1
     }
 }
