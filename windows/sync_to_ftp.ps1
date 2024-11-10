@@ -2,16 +2,17 @@
 $FTP_HOST = "169.239.251.102"
 $FTP_PORT = 321
 
-# Path to the configuration file within Development/scripts
-$SCRIPTS_DIR = "$env:USERPROFILE\Development\scripts"
-$CONFIG_FILE = "$SCRIPTS_DIR\sync_config.conf"
-$LOG_FILE = "$SCRIPTS_DIR\sync_error.log"
-$KEY_FILE = "$SCRIPTS_DIR\sync.key"
+# Path to the configuration and lock files
+$CONFIG_DIR = "$env:USERPROFILE\Development\scripts"
+$CONFIG_FILE = "$CONFIG_DIR\sync_config.conf"
+$LOCK_FILE = "$env:TEMP\sync_in_progress.lock"
+$LOG_FILE = "$CONFIG_DIR\sync_error.log"
+$KEY_FILE = "$CONFIG_DIR\sync.key"
 
-# Ensure the directory exists
-if (!(Test-Path $SCRIPTS_DIR)) {
-    New-Item -ItemType Directory -Path $SCRIPTS_DIR | Out-Null
-    Write-Host "Created directory $SCRIPTS_DIR for configuration file."
+# Ensure the configuration directory exists
+if (!(Test-Path $CONFIG_DIR)) {
+    New-Item -ItemType Directory -Path $CONFIG_DIR | Out-Null
+    Write-Host "$(Get-Date -Format HH:mm:ss) - Created directory $CONFIG_DIR for configuration file."
 }
 
 # Function to write to error log
@@ -40,14 +41,11 @@ function Get-EncryptionKey {
 # Function to encrypt text
 function Protect-Text {
     param([string]$Text)
-    
     try {
         $Key = Get-EncryptionKey
         $secureString = ConvertTo-SecureString $Text -AsPlainText -Force
-        $encrypted = ConvertFrom-SecureString $secureString -Key $Key
-        return $encrypted
-    }
-    catch {
+        return ConvertFrom-SecureString $secureString -Key $Key
+    } catch {
         Write-ErrorLog "Encryption error: $_"
         throw
     }
@@ -56,76 +54,21 @@ function Protect-Text {
 # Function to decrypt text
 function Unprotect-Text {
     param([string]$EncryptedText)
-    
     try {
         $Key = Get-EncryptionKey
         $secureString = ConvertTo-SecureString $EncryptedText -Key $Key
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString)
-        return [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-    }
-    catch {
+        return [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString))
+    } catch {
         Write-ErrorLog "Decryption error: $_"
         throw
     }
 }
 
-# Check if WinSCP .NET assembly is available
-try {
-    Add-Type -Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll"
-} catch {
-    Write-Host "Please install WinSCP and ensure WinSCPnet.dll is available"
-    Write-ErrorLog "WinSCP .NET assembly not found: $_"
-    exit 1
-}
-
-# Check if the configuration file exists
-if (Test-Path $CONFIG_FILE) {
-    # Load user-specific details from the config file
-    $config = Get-Content $CONFIG_FILE | ConvertFrom-Json
-    $FTP_USER = $config.FTP_USER
-    $FTP_PASS = Unprotect-Text $config.FTP_PASS
-    $LOCAL_DIR = $config.LOCAL_DIR
-    $REMOTE_DIR = $config.REMOTE_DIR
-} else {
-    # If the config file does not exist, create it and prompt for details
-    Write-Host "Configuration file not found. Creating a new one..."
-
-    # Prompt user for details
-    $FTP_USER = Read-Host "Enter your Ashesi username"
-    $FTP_PASS = Read-Host "Enter your FTP password" -AsSecureString
-    $FTP_PASS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($FTP_PASS))
-    $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\path\to\lab)"
-    $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
-
-    # Encrypt password and save configuration
-    $encryptedPass = Protect-Text $FTP_PASS
-    $config = @{
-        FTP_USER = $FTP_USER
-        FTP_PASS = $encryptedPass
-        LOCAL_DIR = $LOCAL_DIR
-        REMOTE_DIR = $REMOTE_DIR
-    }
-
-    $config | ConvertTo-Json | Set-Content -Path $CONFIG_FILE
-
-    Write-Host "Configuration saved to $CONFIG_FILE. You won't be asked for these details next time."
-}
-
-# Confirm details
-Write-Host "========================="
-Write-Host "FTP Host: $FTP_HOST"
-Write-Host "Port: $FTP_PORT"
-Write-Host "Username: $FTP_USER"
-Write-Host "Local Directory: $LOCAL_DIR"
-Write-Host "Remote Directory: $REMOTE_DIR"
-Write-Host "========================="
-Write-Host "Starting sync process..."
-
 # Function to sync files using WinSCP
 function Sync-Files {
+    param($FTP_USER, $FTP_PASS, $LOCAL_DIR, $REMOTE_DIR)
     $timestamp = Get-Date -Format "HH:mm:ss"
     Write-Host "$timestamp - Starting sync..."
-
     try {
         $sessionOptions = New-Object WinSCP.SessionOptions
         $sessionOptions.Protocol = [WinSCP.Protocol]::Ftp
@@ -140,7 +83,12 @@ function Sync-Files {
         $transferOptions = New-Object WinSCP.TransferOptions
         $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
 
-        $result = $session.SynchronizeDirectories([WinSCP.SynchronizationMode]::Remote, $LOCAL_DIR, $REMOTE_DIR, $false, $false, [WinSCP.SynchronizationCriteria]::Time, $transferOptions)
+        $result = $session.SynchronizeDirectories(
+            [WinSCP.SynchronizationMode]::Remote,
+            $LOCAL_DIR,
+            $REMOTE_DIR,
+            $false, $false, [WinSCP.SynchronizationCriteria]::Time, $transferOptions
+        )
 
         foreach ($transfer in $result.Transfers) {
             Write-Host "$timestamp - Synced file: $($transfer.FileName)"
@@ -149,9 +97,7 @@ function Sync-Files {
         if ($result.Transfers.Count -eq 0) {
             Write-Host "$timestamp - No new files to sync."
         }
-
     } catch {
-        Write-Host "Error during sync: $_"
         Write-ErrorLog "Sync error: $_"
     } finally {
         if ($session) {
@@ -160,8 +106,42 @@ function Sync-Files {
     }
 }
 
+# Initial setup: Load or create configuration
+if (Test-Path $CONFIG_FILE) {
+    $config = Get-Content $CONFIG_FILE | ConvertFrom-Json
+    $FTP_USER = $config.FTP_USER
+    $FTP_PASS = Unprotect-Text $config.FTP_PASS
+    $LOCAL_DIR = $config.LOCAL_DIR
+    $REMOTE_DIR = $config.REMOTE_DIR
+} else {
+    Write-Host "Configuration file not found. Creating a new one..."
+
+    $FTP_USER = Read-Host "Enter your Ashesi username"
+    $FTP_PASS = Protect-Text (Read-Host "Enter your FTP password" -AsSecureString)
+    $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\path\to\lab)"
+    $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
+
+    $config = @{
+        FTP_USER = $FTP_USER
+        FTP_PASS = $FTP_PASS
+        LOCAL_DIR = $LOCAL_DIR
+        REMOTE_DIR = $REMOTE_DIR
+    }
+    $config | ConvertTo-Json | Set-Content -Path $CONFIG_FILE
+    Write-Host "Configuration saved to $CONFIG_FILE."
+}
+
+# Confirm details
+Write-Host "========================="
+Write-Host "FTP Host: $FTP_HOST"
+Write-Host "Port: $FTP_PORT"
+Write-Host "Username: $FTP_USER"
+Write-Host "Local Directory: $LOCAL_DIR"
+Write-Host "Remote Directory: $REMOTE_DIR"
+Write-Host "========================="
+
 # Run initial sync
-Sync-Files
+Sync-Files -FTP_USER $FTP_USER -FTP_PASS (Unprotect-Text $FTP_PASS) -LOCAL_DIR $LOCAL_DIR -REMOTE_DIR $REMOTE_DIR
 
 # Use FileSystemWatcher to monitor changes
 $watcher = New-Object System.IO.FileSystemWatcher
@@ -170,9 +150,14 @@ $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
 
 $action = {
-    $timestamp = Get-Date -Format "HH:mm:ss"
-    Write-Host "$timestamp - Change detected. Syncing files..."
-    Sync-Files
+    if (!(Test-Path $LOCK_FILE)) {
+        New-Item -ItemType File -Path $LOCK_FILE | Out-Null
+        Write-Host "$(Get-Date -Format HH:mm:ss) - Change detected. Syncing files..."
+        Sync-Files -FTP_USER $FTP_USER -FTP_PASS (Unprotect-Text $FTP_PASS) -LOCAL_DIR $LOCAL_DIR -REMOTE_DIR $REMOTE_DIR
+        Remove-Item -Path $LOCK_FILE
+    } else {
+        Write-Host "$(Get-Date -Format HH:mm:ss) - Sync already in progress. Skipping..."
+    }
 }
 
 Register-ObjectEvent $watcher "Created" -Action $action
