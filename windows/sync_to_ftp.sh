@@ -5,7 +5,7 @@ FTP_HOST="169.239.251.102"
 FTP_PORT=321
 
 # Path to the configuration file
-CONFIG_DIR="$HOME\\AshesiScripts"
+CONFIG_DIR="$HOME\\Development\scripts"
 CONFIG_FILE="${CONFIG_DIR}\\sync_config.conf"
 LOCK_FILE="${TEMP}\\sync_in_progress.lock"
 
