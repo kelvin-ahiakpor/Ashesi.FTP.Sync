@@ -6,11 +6,6 @@ $FTP_PORT = 321
 $CONFIG_DIR = "$HOME\Development\scripts"
 $CONFIG_FILE = "$CONFIG_DIR\sync_config.conf"
 
-# Check if required tools are installed
-if (-not (Get-Command "WinSCP.com" -ErrorAction SilentlyContinue)) {
-    Write-Host "WinSCP is not installed. Please install it from 'https://winscp.net/eng/download.php'."
-    exit 1
-}
 
 # Ensure the directory exists
 if (-not (Test-Path -Path $CONFIG_DIR)) {
