@@ -69,5 +69,28 @@ REMOTE_DIR="$REMOTE_DIR"
     Write-Host "Configuration saved successfully."
 }
 
-# Start syncing files
-Sync-Files
+# Set up the FileSystemWatcher to monitor the local directory
+$watcher = New-Object System.IO.FileSystemWatcher
+$watcher.Path = (Read-Config)[2][1]
+$watcher.IncludeSubdirectories = $true
+$watcher.EnableRaisingEvents = $true
+
+# Define the action to take when a change is detected
+$action = {
+    Write-Host "$(Get-Date -Format 'HH:mm:ss') - Change detected. Syncing files..."
+    Sync-Files
+}
+
+# Register event handlers for changed, created, deleted, and renamed events
+Register-ObjectEvent $watcher 'Changed' -Action $action
+Register-ObjectEvent $watcher 'Created' -Action $action
+Register-ObjectEvent $watcher 'Deleted' -Action $action
+Register-ObjectEvent $watcher 'Renamed' -Action $action
+
+# Keep the script running
+Write-Host "Monitoring changes in $($watcher.Path). Press [Enter] to exit."
+[void][System.Console]::ReadLine()
+
+# Cleanup
+Unregister-Event -SourceIdentifier *
+$watcher.Dispose()
