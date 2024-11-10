@@ -5,9 +5,9 @@ FTP_HOST="169.239.251.102"
 FTP_PORT=321
 
 # Path to the configuration file
-CONFIG_DIR="$HOME/Development/scripts"
-CONFIG_FILE="${CONFIG_DIR}/sync_config.conf"
-LOCK_FILE="${TEMP}/sync_in_progress.lock"
+CONFIG_DIR="$HOME\\Development\\scripts"
+CONFIG_FILE="${CONFIG_DIR}\\sync_config.conf"
+LOCK_FILE="${TEMP}\\sync_in_progress.lock"
 
 # Check if required tools are installed
 if ! command -v lftp &>/dev/null; then
@@ -29,15 +29,6 @@ fi
 if [ -f "$CONFIG_FILE" ]; then
     # Load user-specific details from the config file
     source "$CONFIG_FILE"
-
-    # Convert LOCAL_DIR to Unix-style path
-    LOCAL_DIR=$(cygpath -u "$LOCAL_DIR")
-
-    # Verify the directory exists
-    if [ ! -d "$LOCAL_DIR" ]; then
-        echo "$(date '+%H:%M:%S') - Error: Local directory does not exist: $LOCAL_DIR"
-        exit 1
-    fi
 else
     # If the config file does not exist, create it and prompt for details
     echo "$(date '+%H:%M:%S') - Configuration file not found. Let's create one."
@@ -48,15 +39,6 @@ else
     echo
     read -p "Enter the local path to your lab/project directory (e.g., C:\\path\\to\\lab): " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING): " REMOTE_DIR
-
-    # Convert LOCAL_DIR to Unix-style path
-    LOCAL_DIR=$(cygpath -u "$LOCAL_DIR")
-
-    # Verify the directory exists
-    if [ ! -d "$LOCAL_DIR" ]; then
-        echo "$(date '+%H:%M:%S') - Error: Local directory does not exist: $LOCAL_DIR"
-        exit 1
-    fi
 
     # Save details to the configuration file
     cat <<EOL > "$CONFIG_FILE"
@@ -70,16 +52,11 @@ EOL
     echo "$(date '+%H:%M:%S') - Configuration saved. You are ready to sync!"
 fi
 
-
 # Function to sync files using lftp
 sync_files() {
     echo "$(date '+%H:%M:%S') - Syncing files..."
-    if [ ! -d "$LOCAL_DIR" ]; then
-        echo "$(date '+%H:%M:%S') - Error: Local directory does not exist: $LOCAL_DIR"
-        exit 1
-    fi
-    find "$LOCAL_DIR" -type f -newermt "$(date -d '1 second ago' '+%Y-%m-%d %H:%M:%S')" | while read -r file; do
-        relative_path="${file#$LOCAL_DIR/}"
+    find "$LOCAL_DIR" -type f -newermt "$(date -d '1 second ago' '+%Y-%m-%d %H:%M:%S')" | while read file; do
+        local relative_path="${file#$LOCAL_DIR\\}"
         lftp -u "$FTP_USER","$FTP_PASS" -p "$FTP_PORT" "$FTP_HOST" <<EOF
 put "$file" -o "$REMOTE_DIR/$relative_path"
 quit
@@ -98,7 +75,7 @@ watchman -- trigger "$LOCAL_DIR" sync -- "*" -- sh -c "
 if [ ! -f \"$LOCK_FILE\" ]; then
     touch \"$LOCK_FILE\"
     echo \"$(date '+%H:%M:%S') - Change detected.\"
-    ./sync_to_ftp.sh
+    sync_files
     rm \"$LOCK_FILE\"
 else
     echo \"$(date '+%H:%M:%S') - Sync already in progress. Skipping...\"
