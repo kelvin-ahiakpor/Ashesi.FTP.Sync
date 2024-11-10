@@ -2,6 +2,9 @@
 $FTP_HOST = "169.239.251.102"
 $FTP_PORT = 321
 
+# Load the WinSCP .NET Assembly
+Add-Type -Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll"
+
 # Path to the configuration file
 $CONFIG_DIR = "$env:USERPROFILE\Development\scripts"
 $CONFIG_FILE = "$CONFIG_DIR\sync_config.conf"
