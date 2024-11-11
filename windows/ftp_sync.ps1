@@ -8,7 +8,7 @@ if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
 }
 
 # Import required modules
-Add-Type -Path "${env:ProgramFiles(x86)}\WinSCP\WinSCP.dll"
+Add-Type -Path "${env:ProgramFiles(x86)}\WinSCP\WinSCPnet.dll"
 
 # Constants
 $FTP_HOST = "169.239.251.102"
