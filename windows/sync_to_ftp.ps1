@@ -8,6 +8,13 @@ $CONFIG_FILE = "$SCRIPTS_DIR\sync_config.conf"
 $LOG_FILE = "$SCRIPTS_DIR\sync_error.log"
 $KEY_FILE = "$SCRIPTS_DIR\sync.key"
 
+
+# Check if WinSCP is installed
+if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
+    Write-Host "WinSCP is not installed. Please download it from https://winscp.net/eng/download.php"
+    exit 1
+}
+
 # Ensure the directory exists
 if (!(Test-Path $SCRIPTS_DIR)) {
     New-Item -ItemType Directory -Path $SCRIPTS_DIR | Out-Null
@@ -107,7 +114,7 @@ if (Test-Path $CONFIG_FILE) {
 
     $config | ConvertTo-Json | Set-Content -Path $CONFIG_FILE
 
-    Write-Host "Configuration saved to $CONFIG_FILE. You won't be asked for these details next time."
+    Write-Host "Configuration saved. You're ready to sync! No details required next time."
 }
 
 # Confirm details
@@ -180,6 +187,4 @@ Register-ObjectEvent $watcher "Deleted" -Action $action
 Register-ObjectEvent $watcher "Renamed" -Action $action
 
 Write-Host "Watching for changes. Press Ctrl+C to exit."
-while ($true) {
-    Start-Sleep -Seconds 3
-}
+while ($true) { Start-Sleep -Seconds 1 }
