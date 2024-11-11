@@ -120,8 +120,8 @@ kill %1 # kill first job. this stops the script if it is the first job.
 ---
 
 ## Next Steps: 
-Version 2.0 - Track more directories, for example lab, team project and final project
-Version 3.0 - Upgrade script to a VS Code extension.
+- Version 2.0 - Track more directories, for example lab, team project and final project  
+- Version 3.0 - Upgrade script to a VS Code extension.
 
 ---
 
