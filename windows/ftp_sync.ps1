@@ -2,7 +2,7 @@
 # Requires WinSCP (Install via: winget install WinSCP or download from winscp.net)
 
 # Check if WinSCP is installed
-if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
+if (!(Test-Path "${env:ProgramFiles(x86)}\WinSCP\WinSCPnet.dll")) {
     Write-Host "WinSCP is not installed. Please download it from https://winscp.net/eng/download.php"
     exit 1
 }
@@ -27,30 +27,71 @@ function Write-Log {
     Write-Host "$timestamp - $Message"
 }
 
-function Initialize-Config {
-    if (!(Test-Path $CONFIG_FILE)) {
-        Write-Host "First-time setup. Please enter your credentials:"
-        $username = Read-Host "FTP Username"
-        $password = Read-Host "FTP Password" -AsSecureString
-        $localPath = Read-Host "Local directory to sync (e.g., C:\Projects\WebDev)"
-        $remotePath = Read-Host "Remote directory path (e.g., /public_html)"
-
-        # Convert SecureString to encrypted string
-        $encryptedPassword = ConvertFrom-SecureString $password
-
-        # Create configuration object
-        $config = @{
-            Username = $username
-            Password = $encryptedPassword
-            LocalPath = $localPath
-            RemotePath = $remotePath
-        }
-
-        # Save configuration
-        $config | Export-Clixml -Path $CONFIG_FILE
-        Write-Log "Configuration created successfully"
+function Test-FtpConnection {
+    param($SessionOptions)
+    $testSession = New-Object WinSCP.Session
+    try {
+        Write-Host "Testing FTP connection..."
+        $testSession.Open($SessionOptions)
+        return $true
     }
-    return Import-Clixml -Path $CONFIG_FILE
+    catch {
+        Write-Host "Connection test failed: $_"
+        return $false
+    }
+    finally {
+        $testSession.Dispose()
+    }
+}
+
+function Initialize-Config {
+    do {
+        if (!(Test-Path $CONFIG_FILE)) {
+            Write-Host "First-time setup. Please enter your credentials:"
+            $username = Read-Host "FTP Username"
+            $password = Read-Host "FTP Password" -AsSecureString
+            $localPath = Read-Host "Local directory to sync (e.g., C:\Projects\WebDev)"
+            $remotePath = Read-Host "Remote directory path (e.g., /public_html)"
+
+            # Convert SecureString to encrypted string
+            $encryptedPassword = ConvertFrom-SecureString $password
+
+            # Test connection before saving
+            $sessionOptions = New-Object WinSCP.SessionOptions
+            $sessionOptions.Protocol = [WinSCP.Protocol]::Ftp
+            $sessionOptions.HostName = $FTP_HOST
+            $sessionOptions.PortNumber = $FTP_PORT
+            $sessionOptions.Username = $username
+            $sessionOptions.Password = [System.Net.NetworkCredential]::new("", 
+                (ConvertTo-SecureString $encryptedPassword)).Password
+            $sessionOptions.TimeoutInMilliseconds = 10000
+
+            if (Test-FtpConnection $sessionOptions) {
+                # Create configuration object
+                $config = @{
+                    Username = $username
+                    Password = $encryptedPassword
+                    LocalPath = $localPath
+                    RemotePath = $remotePath
+                }
+
+                # Save configuration
+                $config | Export-Clixml -Path $CONFIG_FILE
+                Write-Log "Configuration created successfully"
+                return $config
+            }
+            else {
+                Write-Host "Would you like to try again? (Y/N)"
+                $retry = Read-Host
+                if ($retry -ne "Y" -and $retry -ne "y") {
+                    exit 1
+                }
+            }
+        }
+        else {
+            return Import-Clixml -Path $CONFIG_FILE
+        }
+    } while ($true)
 }
 
 function Start-FtpSync {
@@ -65,12 +106,13 @@ function Start-FtpSync {
         $sessionOptions.Username = $Config.Username
         $sessionOptions.Password = [System.Net.NetworkCredential]::new("", 
             (ConvertTo-SecureString $Config.Password)).Password
-        $sessionOptions.FtpSecure = [WinSCP.FtpSecure]::Explicit
+        $sessionOptions.TimeoutInMilliseconds = 10000
 
         # Create WinSCP session
         $session = New-Object WinSCP.Session
         
         try {
+            Write-Host "Connecting to FTP server..."
             $session.Open($sessionOptions)
             Write-Log "Connected to FTP server"
 
