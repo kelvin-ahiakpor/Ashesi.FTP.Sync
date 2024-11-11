@@ -1,47 +1,51 @@
 
-# Ashesi FTP Sync 
+# Ashesi FTP Sync
 
-Automatically track changes in your code base and upload to FileZilla FTP Server.
+**Version:** 1.0
 
-## Demo
-Watch this [video](https://youtube.com)
+Ashesi FTP Sync is a cross-platform solution for automating file synchronization between local directories and Ashesi University’s FTP server. This script is ideal for students and developers working on web development projects, ensuring seamless and secure updates to the server in real-time.  
+
+See [Demo](#demo) below.
+---
 
 ## Features
 
-- **Configuration file**: Saves your Ashesi username, password, local directory, and remote directory details in a configuration file (`sync_config.conf`) for easy reuse.
-- **Automated Sync**: Syncs files to the Ashesi server when modified locally.
-- **Change Monitoring**: Monitors the local directory for changes and syncs automatically.
+- **Platform Compatibility**: Available for macOS and Windows.
+- **Automated Synchronization**: Syncs files to the Ashesi FTP server whenever changes are detected.
+- **Secure Credentials**:
+  - macOS: Utilizes Keychain for password security.
+  - Windows: Encrypts passwords using a secure key.
+- **Real-Time Monitoring**:
+  - macOS: Powered by `fswatch` for efficient file change detection.
+  - Windows: Leverages FileSystemWatcher for event-based monitoring.
+- **Simple Setup**: Intuitive configuration process saves user preferences for future runs.
+
+---
 
 ## Requirements
 
-### For macOS/Linux
+### macOS/Linux
+- **lftp**: Install with `brew install lftp` (macOS) or `sudo apt install lftp` (Linux).
+- **fswatch**: Install with `brew install fswatch` (macOS) or `sudo apt install fswatch` (Linux).
 
-- `lftp`: Install it via `brew install lftp` (macOS) or `sudo apt install lftp` (Linux).
-- `fswatch`: Install it via `brew install fswatch` (macOS) or `sudo apt install fswatch` (Linux).
+### Windows
+- **WinSCP**: Download and install [WinSCP](https://winscp.net/eng/download.php).
 
-### For Windows
+---
 
-- **WinSCP**: Download and install [WinSCP](https://winscp.net/eng/download.php) for secure file transfer.
+## Setup and Installation
 
-## Setup and Configuration
+### 1. Clone the Repository
+Clone this repository to a directory of your choice:
+```bash
+git clone https://github.com/kelvin-ahiakpor/Ashesi.FTP.Sync.git
+cd Ashesi.FTP.Sync
+```
 
-1. **Clone the Repository**: Begin by cloning this repository into a desired folder on your system to keep the script and configuration file organized.
-    ```bash
-    git clone https://github.com/kelvin-ahiakpor/Ashesi.FTP.Sync.git
-    cd Ashesi.FTP.Sync
-    ```
-
-2. **Initial Run**: The first time you run the script, it will prompt you to enter the following details:
-    - **Ashesi Username**
-    - **FTP Password** The one you use for ssh/FileZilla (Check Simon's email)
-    - **Local Directory Path**: Path to your lab/project directory.
-    - **Remote Directory Path**: Path on the server where the files will be synced.
-
-    These details will be saved in `sync_config.conf` within this folder, so everything stays organized.
-
-## Usage
-
-- **macOS/Linux**: Run the `sync_to_ftp.sh` file by navigating to its directory and executing:
+### 2. Usage
+- **macOS/Linux**: 
+    You may refer to the [macOS README](./README.md)
+    Run the `sync_to_ftp.sh` file by navigating to its directory and executing:
     ```bash
     cd macOS
     chmod +x sync_to_ftp.sh
@@ -53,8 +57,9 @@ Watch this [video](https://youtube.com)
     ./sync_to_ftp.sh & #subsequent runs can be in background with the added &
     ```
 
-- **Windows**: Run the `sync_to_ftp.ps1` PowerShell script in this path \Ashesi.FTP.Sync\windows
-
+- **Windows**: 
+    You may refer to the [Windows README](./README.md)
+    Run the `sync_to_ftp.ps1` PowerShell script in this path \Ashesi.FTP.Sync\windows
     **Before Running on Windows**:
     - Open PowerShell as Administrator.
     - Allow scripts to run by executing:
@@ -62,69 +67,36 @@ Watch this [video](https://youtube.com)
         Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
         ```
 
-## Example Configuration
-
-An example `sync_config.conf`:
-
-```conf
-FTP_USER="your_username"
-FTP_PASS="your_password"
-LOCAL_DIR="/path/to/local/directory" # Use format C:\path\to\directory for Windows
-REMOTE_DIR="/path/to/remote/directory" # Do not put quotes ("" or '' around your path)
-```
-
-## Help with images
-Here is what your remote directory looks like in Filezilla:
-![Filezilla1](https://github.com/kelvin-ahiakpor/kelvin-ahiakpor.github.io/blob/main/images/ftpsync1.png)
+---
 
 ## Troubleshooting
 
-- **macOS/Linux**: Ensure `lftp` and `fswatch` are installed and configured properly.
-- **Windows**: Verify that WinSCP is correctly installed to `C:\Program Files (x86)\WinSCP\WinSCP.com`.
-- **Mistake in initial setup**: Maybe you used the wrong password or path initially. To fix, run the following commands:
-    
-    **MacOS**
-    ```bash
-    rm ~/Development/scripts/sync_config.conf
-    ./sync_to_ftp.sh
-    ```
+1. **Configuration Issues**:
+   - If incorrect details were entered during setup, remove the configuration file:
+     - macOS: `rm ~/Development/scripts/sync_config.conf`
+     - Windows: `Remove-Item -Path "$HOME\Development\scripts\sync_config.conf"`
+   - Run the script again to reconfigure.
 
-    **Windows**
-    ```powershell
-    Remove-Item -Path "$HOME\Development\scripts\sync_config.conf"
-    ```
+2. **Sync Issues**:
+   - Ensure tools (`lftp`, `fswatch`, or WinSCP`) are properly installed and accessible in your system's PATH.
 
-    Next, Find the script and run it again. You can do this manually or using commands:
-
-    ```powershell
-    cd <path_to_cloned_repo>\windows 
-    .\sync_to_ftp.ps1
-    ```
-
-## Notes
-
-This script is designed to assist in automating the sync process for WebTech projects and assignments on the Ashesi server.
-While using on macOS, I realized that after about an hour, the browser stops retrieving the updated files. 
-It seems like a browser caching problem. To fix, do a 'hard refresh' using  **Ctrl + F5** or **Cmd + Shift + R**.
-In other cases you may want to restart your browser or laptop (quite undesirable, so try the hard refresh many times). 
-
-**Extra**:
-On macOS this script is run as a job. Here is how to maneuver:
-
-```bash
-jobs # view all running jobs
-kill %1 # kill first job. this stops the script if it is the first job.  
-./sync_script.sh & # restart the job if needed.
-```
+3. **Browser Cache**:
+   - On macOS, hard refresh with **Cmd + Shift + R** or **Ctrl + F5** to see updated server files.
 
 ---
 
-## Next Steps: 
-- Version 2.0 - Track more directories, for example lab, team project and final project  
-- Version 3.0 - Upgrade script to a VS Code extension.
+## Demo
+Watch this [demo video](https://youtube.com).
 
 ---
 
-### Disclaimer
+## Next Steps
 
-Please ensure your FTP credentials are kept secure and only share this script with trusted individuals.
+- **Version 2.0**: Support for syncing multiple directories.
+- **Version 3.0**: Transitioning the script to a VS Code extension.
+
+---
+
+## Disclaimer
+
+This project is tailored for Ashesi University students and is shared under an open-source license. Please ensure FTP credentials are stored securely and shared responsibly.
