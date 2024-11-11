@@ -127,21 +127,19 @@ $FileSystemWatcher.Path = $LocalDirectory
 $FileSystemWatcher.IncludeSubdirectories = $true
 $FileSystemWatcher.EnableRaisingEvents = $true
 
-# Event handler for changed files
-$FileSystemWatcher.Changed += {
-    Write-Log "File changed: $($_.FullPath)"
+# Register event handlers for file changes
+Register-ObjectEvent -InputObject $FileSystemWatcher -EventName Changed -Action {
+    Write-Log "File changed: $($Event.SourceEventArgs.FullPath)"
     Sync-Files -LocalPath $LocalDirectory -RemotePath $RemoteDirectory -FTPHost $FTPHost -FTPPort $FTPPort -FTPUsername $FTPUsername -FTPPassword $FTPPassword
 }
 
-# Event handler for created files
-$FileSystemWatcher.Created += {
-    Write-Log "File created: $($_.FullPath)"
+Register-ObjectEvent -InputObject $FileSystemWatcher -EventName Created -Action {
+    Write-Log "File created: $($Event.SourceEventArgs.FullPath)"
     Sync-Files -LocalPath $LocalDirectory -RemotePath $RemoteDirectory -FTPHost $FTPHost -FTPPort $FTPPort -FTPUsername $FTPUsername -FTPPassword $FTPPassword
 }
 
-# Event handler for deleted files
-$FileSystemWatcher.Deleted += {
-    Write-Log "File deleted: $($_.FullPath)"
+Register-ObjectEvent -InputObject $FileSystemWatcher -EventName Deleted -Action {
+    Write-Log "File deleted: $($Event.SourceEventArgs.FullPath)"
     Sync-Files -LocalPath $LocalDirectory -RemotePath $RemoteDirectory -FTPHost $FTPHost -FTPPort $FTPPort -FTPUsername $FTPUsername -FTPPassword $FTPPassword
 }
 
