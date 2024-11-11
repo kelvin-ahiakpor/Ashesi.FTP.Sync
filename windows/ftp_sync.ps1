@@ -116,15 +116,22 @@ function Start-FtpSync {
             $session.Open($sessionOptions)
             Write-Log "Connected to FTP server"
 
-            # Create synchronization options
-            $syncOptions = New-Object WinSCP.SynchronizationOptions
-            $syncOptions.Mirror = $true
-            $syncOptions.Criteria = [WinSCP.SynchronizationCriteria]::Time
-
-            # Perform initial sync
-            $result = $session.SynchronizeDirectories($syncOptions, $Config.LocalPath, 
-                $Config.RemotePath)
-            Write-Log "Initial sync completed. Success: $($result.IsSuccess)"
+            # Perform initial sync using TransferOptions instead of SynchronizationOptions
+            $transferOptions = New-Object WinSCP.TransferOptions
+            $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
+            
+            # Upload all local files
+            $localFiles = Get-ChildItem -Path $Config.LocalPath -Recurse
+            foreach ($file in $localFiles) {
+                if (!$file.PSIsContainer) {
+                    $relativePath = $file.FullName.Substring($Config.LocalPath.Length)
+                    $remotePath = Join-Path $Config.RemotePath $relativePath
+                    $session.PutFiles($file.FullName, $remotePath, $false, $transferOptions)
+                    Write-Log "Uploaded: $($file.Name)"
+                }
+            }
+            
+            Write-Log "Initial sync completed successfully"
         }
         finally {
             $session.Dispose()
@@ -146,9 +153,21 @@ function Start-FtpSync {
             $session = New-Object WinSCP.Session
             try {
                 $session.Open($sessionOptions)
-                $result = $session.SynchronizeDirectories($syncOptions, $Config.LocalPath, 
-                    $Config.RemotePath)
-                Write-Log "Sync completed after $changetype. Success: $($result.IsSuccess)"
+                $transferOptions = New-Object WinSCP.TransferOptions
+                $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
+
+                if ($changetype -eq 'Changed' -or $changetype -eq 'Created') {
+                    $relativePath = $path.Substring($Config.LocalPath.Length)
+                    $remotePath = Join-Path $Config.RemotePath $relativePath
+                    $session.PutFiles($path, $remotePath, $false, $transferOptions)
+                    Write-Log "Uploaded: $path"
+                }
+                elseif ($changetype -eq 'Deleted') {
+                    $relativePath = $path.Substring($Config.LocalPath.Length)
+                    $remotePath = Join-Path $Config.RemotePath $relativePath
+                    $session.RemoveFiles($remotePath)
+                    Write-Log "Deleted: $remotePath"
+                }
             }
             catch {
                 Write-Log "Error during sync: $_"
