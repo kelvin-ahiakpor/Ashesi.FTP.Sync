@@ -17,38 +17,29 @@ if (!(Test-Path $WinSCPPath)) {
 }
 Add-Type -Path $WinSCPPath
 
-# Function to encrypt/decrypt password
-Function Protect-Password([SecureString]$Password) {
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
-    try {
-        $UnsecurePassword = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($BSTR)
-        [Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect([Text.Encoding]::UTF8.GetBytes($UnsecurePassword), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))
-    } finally {
-        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
-    }
+# Function to encrypt password
+Function Protect-Password($Password) {
+    [Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect([Text.Encoding]::UTF8.GetBytes($Password), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))
 }
-Function Unprotect-Password([SecureString]$EncryptedPassword) {
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($EncryptedPassword)
-    try {
-        $UnsecurePassword = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($BSTR)
-        [Text.Encoding]::UTF8.GetString([System.Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($UnsecurePassword), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))
-    } finally {
-        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
-    }
+
+# Function to decrypt password
+Function Unprotect-Password($EncryptedPassword) {
+    [Text.Encoding]::UTF8.GetString([System.Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($EncryptedPassword), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))
 }
 
 # Load configuration or set up if missing
 if (!(Test-Path $ConfigFilePath)) {
     Write-Host "Configuration not found. Running initial setup..."
     $Username = Read-Host "Enter FTP Username"
-    $Password = Read-Host "Enter FTP Password" -AsSecureString | ConvertFrom-SecureString | Protect-Password
+    $Password = Read-Host "Enter FTP Password"
+    $EncryptedPassword = Protect-Password $Password
     $LocalDir = Read-Host "Enter Local Directory Path"
     $RemoteDir = Read-Host "Enter Remote Directory Path"
 
     # Save to config
     $Config = @{
         Username = $Username
-        Password = $Password
+        Password = $EncryptedPassword
         LocalDir = $LocalDir
         RemoteDir = $RemoteDir
     }
