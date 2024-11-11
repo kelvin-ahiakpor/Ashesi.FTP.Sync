@@ -116,7 +116,7 @@ function Start-FtpSync {
             $session.Open($sessionOptions)
             Write-Log "Connected to FTP server"
 
-            # Perform initial sync using TransferOptions instead of SynchronizationOptions
+            # Perform initial sync using TransferOptions
             $transferOptions = New-Object WinSCP.TransferOptions
             $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
             
@@ -137,56 +137,154 @@ function Start-FtpSync {
             $session.Dispose()
         }
 
+        # Create a synchronized hashtable to store the session options
+        $script:SharedVariables = [hashtable]::Synchronized(@{
+            SessionOptions = $sessionOptions
+            Config = $Config
+        })
+
         # Start file system watcher
         $watcher = New-Object System.IO.FileSystemWatcher
         $watcher.Path = $Config.LocalPath
         $watcher.IncludeSubdirectories = $true
-        $watcher.EnableRaisingEvents = $true
+        $watcher.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor `
+                               [System.IO.NotifyFilters]::FileName -bor `
+                               [System.IO.NotifyFilters]::DirectoryName
 
         # Define events
-        $action = {
-            $path = $Event.SourceEventArgs.FullPath
-            $changetype = $Event.SourceEventArgs.ChangeType
-            Write-Log "Change detected: $changetype - $path"
-
-            # Create new session and sync
-            $session = New-Object WinSCP.Session
-            try {
-                $session.Open($sessionOptions)
-                $transferOptions = New-Object WinSCP.TransferOptions
-                $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
-
-                if ($changetype -eq 'Changed' -or $changetype -eq 'Created') {
-                    $relativePath = $path.Substring($Config.LocalPath.Length)
-                    $remotePath = Join-Path $Config.RemotePath $relativePath
-                    $session.PutFiles($path, $remotePath, $false, $transferOptions)
-                    Write-Log "Uploaded: $path"
+        $handlers = @{
+            'Changed' = {
+                param($source, $e)
+                $path = $e.FullPath
+                Write-Log "Change detected: Changed - $path"
+                
+                # Create new session and upload file
+                $session = New-Object WinSCP.Session
+                try {
+                    $session.Open($SharedVariables.SessionOptions)
+                    $transferOptions = New-Object WinSCP.TransferOptions
+                    $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
+                    
+                    if (Test-Path $path) {
+                        $relativePath = $path.Substring($SharedVariables.Config.LocalPath.Length)
+                        $remotePath = Join-Path $SharedVariables.Config.RemotePath $relativePath
+                        $session.PutFiles($path, $remotePath, $false, $transferOptions)
+                        Write-Log "Uploaded changed file: $path"
+                    }
                 }
-                elseif ($changetype -eq 'Deleted') {
-                    $relativePath = $path.Substring($Config.LocalPath.Length)
-                    $remotePath = Join-Path $Config.RemotePath $relativePath
+                catch {
+                    Write-Log "Error during sync: $_"
+                }
+                finally {
+                    $session.Dispose()
+                }
+            }
+            
+            'Created' = {
+                param($source, $e)
+                $path = $e.FullPath
+                Write-Log "Change detected: Created - $path"
+                
+                $session = New-Object WinSCP.Session
+                try {
+                    $session.Open($SharedVariables.SessionOptions)
+                    $transferOptions = New-Object WinSCP.TransferOptions
+                    $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
+                    
+                    if (Test-Path $path) {
+                        $relativePath = $path.Substring($SharedVariables.Config.LocalPath.Length)
+                        $remotePath = Join-Path $SharedVariables.Config.RemotePath $relativePath
+                        $session.PutFiles($path, $remotePath, $false, $transferOptions)
+                        Write-Log "Uploaded new file: $path"
+                    }
+                }
+                catch {
+                    Write-Log "Error during sync: $_"
+                }
+                finally {
+                    $session.Dispose()
+                }
+            }
+            
+            'Deleted' = {
+                param($source, $e)
+                $path = $e.FullPath
+                Write-Log "Change detected: Deleted - $path"
+                
+                $session = New-Object WinSCP.Session
+                try {
+                    $session.Open($SharedVariables.SessionOptions)
+                    $relativePath = $path.Substring($SharedVariables.Config.LocalPath.Length)
+                    $remotePath = Join-Path $SharedVariables.Config.RemotePath $relativePath
                     $session.RemoveFiles($remotePath)
-                    Write-Log "Deleted: $remotePath"
+                    Write-Log "Deleted remote file: $remotePath"
+                }
+                catch {
+                    Write-Log "Error during sync: $_"
+                }
+                finally {
+                    $session.Dispose()
                 }
             }
-            catch {
-                Write-Log "Error during sync: $_"
-            }
-            finally {
-                $session.Dispose()
+            
+            'Renamed' = {
+                param($source, $e)
+                $oldPath = $e.OldFullPath
+                $newPath = $e.FullPath
+                Write-Log "Change detected: Renamed - $oldPath to $newPath"
+                
+                $session = New-Object WinSCP.Session
+                try {
+                    $session.Open($SharedVariables.SessionOptions)
+                    $transferOptions = New-Object WinSCP.TransferOptions
+                    $transferOptions.TransferMode = [WinSCP.TransferMode]::Binary
+                    
+                    # Delete old file
+                    $oldRelativePath = $oldPath.Substring($SharedVariables.Config.LocalPath.Length)
+                    $oldRemotePath = Join-Path $SharedVariables.Config.RemotePath $oldRelativePath
+                    $session.RemoveFiles($oldRemotePath)
+                    
+                    # Upload new file
+                    if (Test-Path $newPath) {
+                        $newRelativePath = $newPath.Substring($SharedVariables.Config.LocalPath.Length)
+                        $newRemotePath = Join-Path $SharedVariables.Config.RemotePath $newRelativePath
+                        $session.PutFiles($newPath, $newRemotePath, $false, $transferOptions)
+                        Write-Log "Renamed file uploaded: $newPath"
+                    }
+                }
+                catch {
+                    Write-Log "Error during sync: $_"
+                }
+                finally {
+                    $session.Dispose()
+                }
             }
         }
 
-        # Register events
-        Register-ObjectEvent $watcher "Created" -Action $action
-        Register-ObjectEvent $watcher "Changed" -Action $action
-        Register-ObjectEvent $watcher "Deleted" -Action $action
-        Register-ObjectEvent $watcher "Renamed" -Action $action
+        # Store registered events for cleanup
+        $script:registeredEvents = @()
 
+        # Register event handlers
+        $handlers.Keys | ForEach-Object {
+            $script:registeredEvents += Register-ObjectEvent -InputObject $watcher -EventName $_ `
+                -Action $handlers[$_]
+        }
+
+        $watcher.EnableRaisingEvents = $true
         Write-Log "File watcher started. Monitoring for changes..."
+        Write-Log "Press Ctrl+C to stop monitoring"
         
-        # Keep script running
-        while ($true) { Start-Sleep -Seconds 1 }
+        # Keep script running and handle Ctrl+C gracefully
+        try {
+            while ($true) { Start-Sleep -Seconds 1 }
+        }
+        finally {
+            $watcher.EnableRaisingEvents = $false
+            $watcher.Dispose()
+            # Clean up registered events
+            $script:registeredEvents | ForEach-Object { Unregister-Event -SubscriptionId $_.Id }
+            $script:registeredEvents = $null
+        }
     }
     catch {
         Write-Log "Error: $_"
