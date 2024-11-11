@@ -8,7 +8,6 @@ $CONFIG_FILE = "$SCRIPTS_DIR\sync_config.conf"
 $LOG_FILE = "$SCRIPTS_DIR\sync_error.log"
 $KEY_FILE = "$SCRIPTS_DIR\sync.key"
 
-
 # Check if WinSCP is installed
 if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
     Write-Host "WinSCP is not installed. Please download it from https://winscp.net/eng/download.php"
@@ -75,6 +74,32 @@ function Unprotect-Text {
     }
 }
 
+# Function to test FTP connection
+function Test-FTPConnection {
+    param($user, $pass)
+    Write-Host "$(Get-Date -Format "HH:mm:ss") - Testing FTP connection..."
+
+    try {
+        $sessionOptions = New-Object WinSCP.SessionOptions
+        $sessionOptions.Protocol = [WinSCP.Protocol]::Ftp
+        $sessionOptions.HostName = $FTP_HOST
+        $sessionOptions.PortNumber = $FTP_PORT
+        $sessionOptions.UserName = $user
+        $sessionOptions.Password = $pass
+
+        $session = New-Object WinSCP.Session
+        $session.Open($sessionOptions)
+        $session.Dispose()
+
+        Write-Host "$(Get-Date -Format "HH:mm:ss") - Connection test successful!"
+        return $true
+    } catch {
+        Write-Host "$(Get-Date -Format "HH:mm:ss") - Connection test failed. Please check your credentials."
+        Write-ErrorLog "FTP connection test failed: $_"
+        return $false
+    }
+}
+
 # Check if WinSCP .NET assembly is available
 try {
     Add-Type -Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll"
@@ -92,14 +117,31 @@ if (Test-Path $CONFIG_FILE) {
     $FTP_PASS = Unprotect-Text $config.FTP_PASS
     $LOCAL_DIR = $config.LOCAL_DIR
     $REMOTE_DIR = $config.REMOTE_DIR
+
+    # Verify stored credentials still work
+    if (-not (Test-FTPConnection -user $FTP_USER -pass $FTP_PASS)) {
+        Write-Host "$(Get-Date -Format "HH:mm:ss") - Stored credentials are invalid. Please reconfigure."
+        Remove-Item $CONFIG_FILE
+        exit 1
+    }
 } else {
     # If the config file does not exist, create it and prompt for details
     Write-Host "Configuration file not found. Let's create one."
 
-    # Prompt user for details
-    $FTP_USER = Read-Host "Enter your Ashesi username"
-    $FTP_PASS = Read-Host "Enter your FTP password" -AsSecureString
-    $FTP_PASS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($FTP_PASS))
+    while ($true) {
+        # Prompt user for details
+        $FTP_USER = Read-Host "Enter your Ashesi username"
+        $FTP_PASS = Read-Host "Enter your FTP password" -AsSecureString
+        $FTP_PASS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($FTP_PASS))
+
+        # Test connection before proceeding
+        if (Test-FTPConnection -user $FTP_USER -pass $FTP_PASS) {
+            break
+        } else {
+            Write-Host "Please try again with correct credentials."
+        }
+    }
+
     $LOCAL_DIR = Read-Host "Enter the local path to your lab/project directory (e.g., C:\path\to\lab)"
     $REMOTE_DIR = Read-Host "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING)"
 
