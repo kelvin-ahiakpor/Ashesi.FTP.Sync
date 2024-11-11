@@ -25,8 +25,30 @@ if [ ! -d "$CONFIG_DIR" ]; then
     echo "$(date '+%H:%M:%S') - Created directory $CONFIG_DIR for configuration file."
 fi
 
+# Function to test FTP connection
+test_ftp_connection() {
+    local user=$1
+    local pass=$2
+    echo "$(date '+%H:%M:%S') - Testing FTP connection..."
+    
+    # Try to connect and list directory
+    if lftp -u "$user","$pass" -p "$FTP_PORT" "$FTP_HOST" -e "ls; quit" &>/dev/null; then
+        echo "$(date '+%H:%M:%S') - Connection test successful!"
+        return 0
+    else
+        echo "$(date '+%H:%M:%S') - Connection test failed. Please check your credentials."
+        return 1
+    fi
+}
+
 # Function to store credentials in Keychain
 store_credentials() {
+    # First test the connection
+    if ! test_ftp_connection "$FTP_USER" "$FTP_PASS"; then
+        echo "$(date '+%H:%M:%S') - Aborting credential storage due to failed connection test."
+        exit 1
+    fi
+
     # Remove existing keychain entry if it exists
     security delete-generic-password -a "$FTP_USER" -s "Ashesi FTP" &>/dev/null
 
@@ -45,14 +67,31 @@ if [ -f "$CONFIG_FILE" ]; then
     # Load user-specific details from the config file
     source "$CONFIG_FILE"
     FTP_PASS=$(retrieve_password)
+
+    # Verify stored credentials still work
+    if ! test_ftp_connection "$FTP_USER" "$FTP_PASS"; then
+        echo "$(date '+%H:%M:%S') - Stored credentials are invalid. Please run again to enter credentials."
+        rm "$CONFIG_FILE"
+        exit 1
+    fi
 else
     # If the config file does not exist, create it and prompt for details
     echo "$(date '+%H:%M:%S') - Configuration file not found. Let's create one."
 
-    # Prompt user for details
-    read -p "Enter your Ashesi username: " FTP_USER
-    read -sp "Enter your FTP password: " FTP_PASS
-    echo
+    while true; do
+        # Prompt user for details
+        read -p "Enter your Ashesi username: " FTP_USER
+        read -sp "Enter your FTP password: " FTP_PASS
+        echo
+        
+        # Test connection before proceeding
+        if test_ftp_connection "$FTP_USER" "$FTP_PASS"; then
+            break
+        else
+            echo "Please try again with correct credentials."
+        fi
+    done
+
     read -p "Enter the local path to your lab/project directory (e.g., /path/to/lab): " LOCAL_DIR
     read -p "Enter the remote path on the server (e.g., /public_html/RECIPE_SHARING): " REMOTE_DIR
 
