@@ -1,148 +1,142 @@
-# Load WinSCP .NET assembly
-Add-Type -Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll"
+# FTP Sync Script for Windows
+# Requires WinSCP (Install via: winget install WinSCP or download from winscp.net)
 
-# Define constants
-$LOG_FILE = "$env:USERPROFILE\Development\scripts\ftp_sync_log.txt"
-$CONFIG_FILE = "$env:USERPROFILE\Development\scripts\ftp_sync_config.json"
+# Check if WinSCP is installed
+if (!(Test-Path "C:\Program Files (x86)\WinSCP\WinSCPnet.dll")) {
+    Write-Host "WinSCP is not installed. Please download it from https://winscp.net/eng/download.php"
+    exit 1
+}
 
-# Function to write log messages
+# Import required modules
+Add-Type -Path "${env:ProgramFiles(x86)}\WinSCP\WinSCP.dll"
+
+# Constants
+$FTP_HOST = "169.239.251.102"
+$FTP_PORT = 321
+$SCRIPTS_DIR = "$env:USERPROFILE\Development\scripts"
+$CONFIG_FILE = "$SCRIPTS_DIR\ftp-sync-config.xml"
+$LOG_FILE = "$SCRIPTS_DIR\ftp-sync.log"
+
+# Ensure directories exist
+New-Item -ItemType Directory -Force -Path $SCRIPTS_DIR | Out-Null
+
 function Write-Log {
-    param (
-        [string]$Message
-    )
-    $Timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    "$Timestamp - $Message" | Out-File -FilePath $LOG_FILE -Append
+    param($Message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$timestamp - $Message" | Add-Content -Path $LOG_FILE
+    Write-Host "$timestamp - $Message"
 }
 
-# Function to read configuration
-function Get-Config {
-    if (Test-Path $CONFIG_FILE) {
-        $Config = Get-Content $CONFIG_FILE | ConvertFrom-Json
-        return $Config
-    } else {
-        return $null
-    }
-}
+function Initialize-Config {
+    if (!(Test-Path $CONFIG_FILE)) {
+        Write-Host "First-time setup. Please enter your credentials:"
+        $username = Read-Host "FTP Username"
+        $password = Read-Host "FTP Password" -AsSecureString
+        $localPath = Read-Host "Local directory to sync (e.g., C:\Projects\WebDev)"
+        $remotePath = Read-Host "Remote directory path (e.g., /public_html)"
 
-# Function to save configuration
-function Set-Config {
-    param (
-        [string]$FTPHost,
-        [int]$FTPPort,
-        [string]$FTPUsername,
-        [SecureString]$FTPPassword,
-        [string]$LocalPath,
-        [string]$RemotePath
-    )
-    $Config = @{
-        FTPHost = $FTPHost
-        FTPPort = $FTPPort
-        FTPUsername = $FTPUsername
-        FTPPassword = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($FTPPassword))
-        LocalDirectory = $LocalPath
-        RemoteDirectory = $RemotePath
-    }
-    $Config | ConvertTo-Json | Set-Content -Path $CONFIG_FILE
-}
+        # Convert SecureString to encrypted string
+        $encryptedPassword = ConvertFrom-SecureString $password
 
-# Function to sync files
-function Sync-Files {
-    param (
-        [string]$LocalPath,
-        [string]$RemotePath,
-        [string]$FTPHost,
-        [int]$FTPPort,
-        [string]$FTPUsername,
-        [SecureString]$FTPPassword
-    )
-    
-    $sessionOptions = New-Object WinSCP.SessionOptions -Property @{
-        Protocol = [WinSCP.Protocol]::Ftp
-        HostName = $FTPHost
-        PortNumber = $FTPPort
-        UserName = $FTPUsername
-        Password = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($FTPPassword))
-        FtpSecure = [WinSCP.FtpSecure]::None
-    }
-
-    $session = New-Object WinSCP.Session
-    try {
-        # Connect to FTP server
-        $session.Open($sessionOptions)
-
-        # Synchronize files
-        $transferOptions = New-Object WinSCP.TransferOptions
-        $transferOptions.TransferMode = [WinSCP.TransferMode]::Auto
-        
-        $transferOperationResult = $session.SynchronizeDirectories(
-            [WinSCP.SynchronizationMode]::Local, 
-            $LocalPath, 
-            $RemotePath, 
-            $False, 
-            $transferOptions
-        )
-        
-        # Check for errors
-        if ($transferOperationResult.Failures -gt 0) {
-            Write-Log "Transfer completed with errors."
-        } else {
-            Write-Log "Transfer completed successfully."
+        # Create configuration object
+        $config = @{
+            Username = $username
+            Password = $encryptedPassword
+            LocalPath = $localPath
+            RemotePath = $remotePath
         }
-    } catch {
+
+        # Save configuration
+        $config | Export-Clixml -Path $CONFIG_FILE
+        Write-Log "Configuration created successfully"
+    }
+    return Import-Clixml -Path $CONFIG_FILE
+}
+
+function Start-FtpSync {
+    param($Config)
+
+    try {
+        # Create WinSCP session options
+        $sessionOptions = New-Object WinSCP.SessionOptions
+        $sessionOptions.Protocol = [WinSCP.Protocol]::Ftp
+        $sessionOptions.HostName = $FTP_HOST
+        $sessionOptions.PortNumber = $FTP_PORT
+        $sessionOptions.Username = $Config.Username
+        $sessionOptions.Password = [System.Net.NetworkCredential]::new("", 
+            (ConvertTo-SecureString $Config.Password)).Password
+        $sessionOptions.FtpSecure = [WinSCP.FtpSecure]::Explicit
+
+        # Create WinSCP session
+        $session = New-Object WinSCP.Session
+        
+        try {
+            $session.Open($sessionOptions)
+            Write-Log "Connected to FTP server"
+
+            # Create synchronization options
+            $syncOptions = New-Object WinSCP.SynchronizationOptions
+            $syncOptions.Mirror = $true
+            $syncOptions.Criteria = [WinSCP.SynchronizationCriteria]::Time
+
+            # Perform initial sync
+            $result = $session.SynchronizeDirectories($syncOptions, $Config.LocalPath, 
+                $Config.RemotePath)
+            Write-Log "Initial sync completed. Success: $($result.IsSuccess)"
+        }
+        finally {
+            $session.Dispose()
+        }
+
+        # Start file system watcher
+        $watcher = New-Object System.IO.FileSystemWatcher
+        $watcher.Path = $Config.LocalPath
+        $watcher.IncludeSubdirectories = $true
+        $watcher.EnableRaisingEvents = $true
+
+        # Define events
+        $action = {
+            $path = $Event.SourceEventArgs.FullPath
+            $changetype = $Event.SourceEventArgs.ChangeType
+            Write-Log "Change detected: $changetype - $path"
+
+            # Create new session and sync
+            $session = New-Object WinSCP.Session
+            try {
+                $session.Open($sessionOptions)
+                $result = $session.SynchronizeDirectories($syncOptions, $Config.LocalPath, 
+                    $Config.RemotePath)
+                Write-Log "Sync completed after $changetype. Success: $($result.IsSuccess)"
+            }
+            catch {
+                Write-Log "Error during sync: $_"
+            }
+            finally {
+                $session.Dispose()
+            }
+        }
+
+        # Register events
+        Register-ObjectEvent $watcher "Created" -Action $action
+        Register-ObjectEvent $watcher "Changed" -Action $action
+        Register-ObjectEvent $watcher "Deleted" -Action $action
+        Register-ObjectEvent $watcher "Renamed" -Action $action
+
+        Write-Log "File watcher started. Monitoring for changes..."
+        
+        # Keep script running
+        while ($true) { Start-Sleep -Seconds 1 }
+    }
+    catch {
         Write-Log "Error: $_"
-    } finally {
-        $session.Dispose()
     }
 }
 
-# Check if configuration file exists
-$config = Get-Config
-
-if (-not $config) {
-    # Initial setup: prompt for FTP credentials
-    $FTPHost = Read-Host "Enter FTP Host"
-    $FTPPort = Read-Host "Enter FTP Port (default 21)"
-    $FTPPort = if ($FTPPort) { [int]$FTPPort } else { 21 }
-    $FTPUsername = Read-Host "Enter FTP Username"
-    $FTPPassword = Read-Host "Enter FTP Password" -AsSecureString
-    $LocalDirectory = Read-Host "Enter Local Directory Path"
-    $RemoteDirectory = Read-Host "Enter Remote Directory Path"
-
-    # Save configuration
-    Set-Config -FTPHost $FTPHost -FTPPort $FTPPort -FTPUsername $FTPUsername -FTPPassword $FTPPassword -LocalPath $LocalDirectory -RemotePath $RemoteDirectory
-    Write-Log "Configuration saved."
-} else {
-    # Use existing configuration
-    $FTPHost = $config.FTPHost
-    $FTPPort = $config.FTPPort
-    $FTPUsername = $config.FTPUsername
-    $FTPPassword = $config.FTPPassword
-    $LocalDirectory = $config.LocalDirectory
-    $RemoteDirectory = $config.RemoteDirectory
+# Main execution
+try {
+    $config = Initialize-Config
+    Start-FtpSync -Config $config
 }
-
-# Monitor the local directory for changes
-$FileSystemWatcher = New-Object System.IO.FileSystemWatcher
-$FileSystemWatcher.Path = $LocalDirectory
-$FileSystemWatcher.IncludeSubdirectories = $true
-$FileSystemWatcher.EnableRaisingEvents = $true
-
-# Register event handlers for file changes
-Register-ObjectEvent -InputObject $FileSystemWatcher -EventName Changed -Action {
-    Write-Log "File changed: $($Event.SourceEventArgs.FullPath)"
-    Sync-Files -LocalPath $LocalDirectory -RemotePath $RemoteDirectory -FTPHost $FTPHost -FTPPort $FTPPort -FTPUsername $FTPUsername -FTPPassword $FTPPassword
+catch {
+    Write-Log "Fatal error: $_"
 }
-
-Register-ObjectEvent -InputObject $FileSystemWatcher -EventName Created -Action {
-    Write-Log "File created: $($Event.SourceEventArgs.FullPath)"
-    Sync-Files -LocalPath $LocalDirectory -RemotePath $RemoteDirectory -FTPHost $FTPHost -FTPPort $FTPPort -FTPUsername $FTPUsername -FTPPassword $FTPPassword
-}
-
-Register-ObjectEvent -InputObject $FileSystemWatcher -EventName Deleted -Action {
-    Write-Log "File deleted: $($Event.SourceEventArgs.FullPath)"
-    Sync-Files -LocalPath $LocalDirectory -RemotePath $RemoteDirectory -FTPHost $FTPHost -FTPPort $FTPPort -FTPUsername $FTPUsername -FTPPassword $FTPPassword
-}
-
-# Keep the script running
-Write-Log "Monitoring started for $LocalDirectory."
-while ($true) { Start-Sleep -Seconds 1 }
