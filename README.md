@@ -86,8 +86,8 @@ cd Ashesi.FTP.Sync
 ---
 
 ## Demo
-Watch this [demo video] for macOS(https://youtu.be/LkYsw2BG1e4).
-Watch this [demo video] for windows(https://youtu.be/ie83a7R-fuY).
+- Watch this [demo video](https://youtu.be/LkYsw2BG1e4) for macOS.  
+- Watch this [demo video](https://youtu.be/ie83a7R-fuY) for windows.
 
 ---
 
