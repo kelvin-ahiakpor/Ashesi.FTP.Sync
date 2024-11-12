@@ -5,7 +5,7 @@
 
 Ashesi FTP Sync is a cross-platform solution for automating file synchronization between local directories and Ashesi University’s FTP server. This script is ideal for students and developers working on web development projects, ensuring seamless and secure updates to the server in real-time.  
 
-See [Demo](#demo) below.
+See [Demos](#demo) below.
 ---
 
 ## Features
@@ -86,7 +86,8 @@ cd Ashesi.FTP.Sync
 ---
 
 ## Demo
-Watch this [demo video](https://youtube.com).
+Watch this [demo video] for macOS(https://youtu.be/LkYsw2BG1e4).
+Watch this [demo video] for windows(https://youtu.be/ie83a7R-fuY).
 
 ---
 
