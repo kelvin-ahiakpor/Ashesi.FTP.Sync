@@ -40,7 +40,8 @@ Before using this script, ensure the following:
 - **WinSCP Installation**:
     Verify that `WinSCP.com` is correctly installed in:
     ```plaintext
-    C:\Program Files (x86)\WinSCP    ```
+    C:\Program Files (x86)\WinSCP    
+    ```
 - **Reset Configuration**:
     Delete the existing config file:
     ```powershell
