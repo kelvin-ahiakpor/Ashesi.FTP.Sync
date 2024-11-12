@@ -98,6 +98,14 @@ Watch this [demo video] for windows(https://youtu.be/ie83a7R-fuY).
 
 ---
 
+## Contributing
+
+We’re excited to collaborate with developers and contributors! Follow our guidelines to help improve Ashesi FTP Sync.  
+See the full guide here: [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+
+---
+
 ## Disclaimer
 
 This project is tailored for Ashesi University students and is shared under an open-source license. Please ensure FTP credentials are stored securely and shared responsibly.
